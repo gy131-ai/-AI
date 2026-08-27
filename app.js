@@ -48,7 +48,7 @@ const state = {
   homeType: "朋友圈海报",
   worksFilter: "image",
   selectedTemplateId: sessionStorage.getItem("yingdian_template") || "summer",
-  selectedImages: [ASSET.room],
+  selectedImages: [],
   selectedQr: false,
   selectedRatioImage: "3:4",
   selectedRatioVideo: "9:16",
@@ -225,10 +225,10 @@ function renderAssetThumbs(images, removeAction = "asset-remove", kind = "image"
 }
 
 function renderQuickPrompt({ value, bind, placeholder, images, removeAction, kind, listKey, assetLabel, suggestion = "", label = "想做什么？" }) {
-  const listening = state.voiceListening && state.voiceTarget === bind;
   const selectedAssets = images.length ? `<div class="quick-chosen-assets">${images.map((image, index) => `<span class="quick-asset-thumb"><img src="${image}" alt="已添加素材"><button data-action="${removeAction}" data-index="${index}" aria-label="删除素材">${icon("close")}</button></span>`).join("")}<button class="quick-asset-add" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}" aria-label="继续添加素材">${icon("plus")}</button></div>` : "";
   const suggestionMarkup = suggestion ? `<div class="quick-asset-suggestion"><strong>建议使用素材</strong><span>${esc(suggestion)}</span></div>` : "";
-  return `<article class="quick-prompt-card"><h2 class="quick-prompt-label">${esc(label)}</h2><textarea class="quick-prompt-idea" data-bind="${bind}" aria-label="${esc(label)}" placeholder="${esc(placeholder)}">${esc(value)}</textarea><div class="quick-material-zone">${suggestionMarkup}${selectedAssets}</div><div class="quick-prompt-actions"><button class="quick-asset-action" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}">${icon("image")}<span>${esc(assetLabel)}</span></button><button class="quick-voice-action ${listening ? "listening" : ""}" data-action="voice-input" data-field="${bind}">${icon("mic")}<span>${listening ? "正在听" : "语音输入"}</span></button></div></article>`;
+  const assetAction = images.length ? "" : `<div class="quick-prompt-actions"><button class="quick-asset-action" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}">${icon("image")}<span>添加素材</span></button></div>`;
+  return `<article class="quick-prompt-card ${images.length ? "has-assets" : ""}"><h2 class="quick-prompt-label">${esc(label)}</h2><textarea class="quick-prompt-idea" data-bind="${bind}" aria-label="${esc(label)}" placeholder="${esc(placeholder)}">${esc(value)}</textarea><div class="quick-material-zone">${suggestionMarkup}${selectedAssets}</div>${assetAction}</article>`;
 }
 
 function displayHotelLabels() {
@@ -291,13 +291,13 @@ function musicRow() {
 
 function renderImageCreate() {
   const action = `<button class="primary-btn" data-action="start-generation" data-source="imageCreate">${icon("sparkle")}开始生成宣传图</button>`;
-  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "image-idea", placeholder: "描述你想做的宣传图，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "image", listKey: "selectedImages", assetLabel: "添加图片" })}<div class="quick-settings-panel">${renderDisplaySettings("image", true)}${renderQuickRatioSection("image", "画幅比例")}</div></div>`;
+  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "image-idea", placeholder: "描述你想做的宣传图，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "image", listKey: "selectedImages", assetLabel: "添加素材" })}<div class="quick-settings-panel">${renderDisplaySettings("image", true)}${renderQuickRatioSection("image", "画幅比例")}</div></div>`;
   return pageShell({ title: "做宣传图", content, action });
 }
 
 function renderVideoCreate() {
   const action = `<button class="primary-btn" data-action="start-generation" data-source="videoCreate">${icon("sparkle")}开始生成15秒视频</button>`;
-  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "video-idea", placeholder: "描述你想做的15秒视频，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "video", listKey: "selectedImages", assetLabel: "添加图片或视频" })}<div class="quick-settings-panel">${renderDisplaySettings("video", false)}${renderQuickRatioSection("video", "视频比例")}${renderQuickMusicSection()}</div></div>`;
+  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "video-idea", placeholder: "描述你想做的15秒视频，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "video", listKey: "selectedImages", assetLabel: "添加素材" })}<div class="quick-settings-panel">${renderDisplaySettings("video", false)}${renderQuickRatioSection("video", "视频比例")}${renderQuickMusicSection()}</div></div>`;
   return pageShell({ title: "做15秒视频", content, action });
 }
 
@@ -317,7 +317,7 @@ function renderTemplateCreate() {
   const item = selectedTemplate();
   const action = `<button class="primary-btn" data-action="start-generation" data-source="templateCreate">${icon("sparkle")}生成成品</button>`;
   const templatePreview = `<section class="section template-context-section"><div class="template-context-card"><button class="template-context-thumb" data-action="template-preview" data-template="${item.id}" aria-label="查看${esc(item.name)}样式"><img src="${item.image}" alt="${esc(item.name)}样式缩略图"></button><div class="template-context-copy"><div class="template-context-heading"><div><p class="eyebrow">当前模板</p><h2 class="section-title">${esc(item.name)}</h2><p class="section-note">${esc(item.type)} · ${esc(item.scene)}</p></div><span class="template-context-ratio">${esc(item.ratio)}</span></div><p class="template-context-hint">上传主图，套用这个样式</p><div class="template-context-actions"><button class="text-action" data-action="template-preview" data-template="${item.id}">查看样式 ${icon("chevron")}</button><button class="text-action" data-nav="templates">重新选择 ${icon("chevron")}</button></div></div></div></section>`;
-  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加主图", suggestion: templateMaterialHint(item) })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
+  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加素材", suggestion: templateMaterialHint(item) })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
   return pageShell({ title: "模板创作", content, action });
 }
 
@@ -361,7 +361,7 @@ function renderMarketingCreate() {
   const summary = `<section class="section"><div class="editorial-card"><div class="editorial-card-body"><p class="eyebrow">策划摘要</p><h2 class="section-title">${summaryTitle}</h2><p class="section-note">${summaryNote}</p><div class="marketing-summary-action"><button class="text-action" data-nav="marketingPlan">查看完整策划 ${icon("chevron")}</button></div></div></div></section>`;
   const typeSelector = `<section class="section"><div class="section-head"><h2 class="section-title">内容类型</h2><span class="section-note">选择一种先生成</span></div><div class="segmented"><button class="segment ${image ? "active" : ""}" data-action="marketing-type" data-type="image">文案＋图片</button><button class="segment ${!image ? "active" : ""}" data-action="marketing-type" data-type="video">文案＋视频</button></div></section>`;
   const settings = `${renderDisplaySettings(image ? "image" : "video", image)}${renderQuickRatioSection(image ? "image" : "video", image ? "图片比例" : "视频比例")}${image ? "" : renderQuickMusicSection()}`;
-  const content = `<div class="quick-create-content marketing-quick-create">${summary}${typeSelector}${renderQuickPrompt({ value: state.marketingIdea, bind: "marketing-idea", placeholder: "编辑基于策划生成的内容想法", images: state.marketingImages, removeAction: "marketing-asset-remove", kind: image ? "image" : "video", listKey: "marketingImages", assetLabel: image ? "添加图片" : "添加图片或视频", suggestion: "亲子房环境、早餐餐台、儿童用品和酒店公共空间照片" })}<div class="quick-settings-panel">${settings}</div></div>`;
+  const content = `<div class="quick-create-content marketing-quick-create">${summary}${typeSelector}${renderQuickPrompt({ value: state.marketingIdea, bind: "marketing-idea", placeholder: "编辑基于策划生成的内容想法", images: state.marketingImages, removeAction: "marketing-asset-remove", kind: image ? "image" : "video", listKey: "marketingImages", assetLabel: "添加素材", suggestion: "亲子房环境、早餐餐台、儿童用品和酒店公共空间照片" })}<div class="quick-settings-panel">${settings}</div></div>`;
   return pageShell({ title: "营销内容创作", content, action });
 }
 
@@ -448,15 +448,20 @@ function renderGeneration() {
 
 function renderResult() {
   const resultParams = new URLSearchParams(location.search);
+  const resultWork = resultParams.get("workId") ? state.works.find((work) => work.id === resultParams.get("workId")) : null;
   const kind = resultParams.get("kind") || (state.generation?.kind === "video" ? "video" : "image");
   const video = kind === "video";
-  const marketing = isMarketingGeneration(state.generation) || resultParams.get("source") === "marketingActivity";
-  const template = state.generation?.source === "templateCreate";
-  const resultHotel = state.generation?.hotelContext || currentHotel();
-  const media = `<div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="${video ? "15秒视频封面" : "宣传图作品"}"><div class="result-overlay"><small>${esc(resultHotel?.name || "当前酒店")}</small><strong>${video ? "在这里，住进一段暑假" : "这个夏天，和孩子住得刚刚好"}</strong><span>${video ? "15秒视频 · 暑期亲子入住推广" : "宣传图 · 暑期亲子入住推广"}</span></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div>`;
+  const resultSource = resultParams.get("source") || resultWork?.source || state.generation?.source || "imageCreate";
+  const marketing = resultSource === "marketingCreate" || resultParams.get("source") === "marketingActivity" || isMarketingWork(resultWork);
+  const template = resultSource === "templateCreate";
+  const resultHotel = resultWork?.hotelContext || state.generation?.hotelContext || currentHotel();
+  const resultTitle = resultWork?.title || state.generation?.title || (video ? "暑期亲子入住短片" : "夏日亲子入住推广");
+  const resultTypeLabel = video ? "15秒视频" : "宣传图";
+  const resultSourceLabel = marketing ? "营销活动" : template ? "模板创作" : "自由创作";
+  const media = `<div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="${video ? "15秒视频封面" : "宣传图作品"}"><div class="result-overlay"><small>${esc(resultHotel?.name || "当前酒店")}</small><strong>${esc(resultTitle)}</strong><span>${resultTypeLabel} · ${resultSourceLabel}</span></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div>`;
   const resultExplanation = marketing ? "" : template
     ? `<section class="section result-explanation"><p class="eyebrow">创作说明</p><p class="result-explanation-title">已按所选样式完成主图替换</p></section>`
-    : `<section class="section result-explanation"><p class="eyebrow">创作说明</p><p class="result-explanation-title">根据你的想法生成</p><p class="result-explanation-copy">${esc(state.generation?.idea || "围绕酒店特色，生成一份适合发布的内容。")}</p></section>`;
+    : `<section class="section result-explanation"><p class="eyebrow">创作说明</p><p class="result-explanation-title">根据你的想法生成</p><p class="result-explanation-copy">${esc(resultWork?.idea || state.generation?.idea || "围绕酒店特色，生成一份适合发布的内容。")}</p></section>`;
   const marketingCompleted = marketingCompletedItems();
   const marketingCopy = "这个夏天，带孩子住得舒服，也顺便有得玩。亲子房、早餐和周边体验，一次安排好。";
   const marketingNext = video ? "宣传图" : "15秒视频";
@@ -502,7 +507,7 @@ function renderEdit() {
   const video = kind === "video";
   const action = `<button class="primary-btn" data-action="start-generation" data-source="edit" data-kind="${kind}">${icon("sparkle")}生成修改版</button>`;
   const media = `<section class="section edit-original-section"><div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="原作品"><div class="result-overlay"><small>原作品</small><strong>${video ? "在这里，住进一段暑假" : "这个夏天，和孩子住得刚刚好"}</strong></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div></section>`;
-  const prompt = renderQuickPrompt({ value: state.editIdea, bind: "edit-idea", placeholder: video ? "描述想怎么调整，也可以添加或更换图片、视频" : "描述想怎么调整，也可以添加或更换图片", images: state.editImages, removeAction: "edit-asset-remove", kind: video ? "video" : "image", listKey: "editImages", assetLabel: video ? "添加图片或视频" : "添加图片", label: "想改什么？" });
+  const prompt = renderQuickPrompt({ value: state.editIdea, bind: "edit-idea", placeholder: video ? "描述想怎么调整，也可以添加或更换图片、视频" : "描述想怎么调整，也可以添加或更换图片", images: state.editImages, removeAction: "edit-asset-remove", kind: video ? "video" : "image", listKey: "editImages", assetLabel: "添加素材", label: "想改什么？" });
   const settings = `${renderDisplaySettings(video ? "video" : "image", !video)}${renderQuickRatioSection(video ? "video" : "image", video ? "视频比例" : "画幅比例")}${video ? renderQuickMusicSection() : ""}`;
   const content = `${media}<div class="quick-create-content edit-quick-create">${prompt}<div class="quick-settings-panel">${settings}</div></div>`;
   return pageShell({ title: video ? "修改15秒视频" : "修改宣传图", content, action });
@@ -512,9 +517,10 @@ function renderWorks() {
   const filter = state.worksFilter;
   const hotelId = currentHotel()?.id;
   const contextWorks = state.works.filter((work) => !work.hotelId || work.hotelId === hotelId);
-  const ordinaryWorks = contextWorks.map((work) => work.type === "模板创作" ? { ...work, type: "宣传图" } : work);
+  const ordinaryWorks = contextWorks.map((work) => work.type === "模板创作" ? { ...work, type: "宣传图", source: work.source || "templateCreate" } : work);
   const filtered = ordinaryWorks.filter((work) => !isMarketingWork(work) && (filter === "image" ? work.type !== "15秒视频" : work.type === "15秒视频"));
-  const workList = filtered.length ? `<div class="work-list">${filtered.map((work) => `<button class="work-item" data-action="work-open" data-id="${work.id}"><span class="work-thumb"><img src="${work.image}" alt="${esc(work.title)}"></span><span class="work-copy"><strong>${esc(work.title)}</strong><span>${filter === "image" ? "图片" : "视频"} · ${esc(work.status)} · ${esc(work.time)}</span></span>${icon("chevron")}</button>`).join("")}</div>` : `<div class="empty-card compact"><div class="empty-icon">${icon(filter === "image" ? "image" : "video")}</div><h3>还没有${filter === "image" ? "图片" : "视频"}作品</h3><p>完成生成后，作品会自动保存在这里。</p></div>`;
+  const mediaLabel = filter === "image" ? "图片" : "视频";
+  const workList = filtered.length ? `<div class="work-grid">${filtered.map((work) => `<button class="work-tile" data-action="work-open" data-id="${work.id}" aria-label="查看${mediaLabel}作品"><span class="work-tile-media"><img src="${work.image}" alt="${mediaLabel}作品">${filter === "video" ? `<span class="work-tile-play">${icon("play")}</span>` : ""}</span><span class="work-tile-meta"><span class="work-tile-status"><i></i>${esc(work.status || "已完成")}</span><span class="work-tile-time">${esc(work.time || "刚刚")}</span></span></button>`).join("")}</div>` : `<div class="empty-card compact"><div class="empty-icon">${icon(filter === "image" ? "image" : "video")}</div><h3>还没有${mediaLabel}作品</h3><p>完成生成后，作品会自动保存在这里。</p></div>`;
   const marketingCompleted = marketingCompletedItems();
   const marketingImageDone = marketingCompleted.includes("宣传图") || !marketingCompleted.length;
   const marketingVideoDone = marketingCompleted.includes("15秒视频");
@@ -612,7 +618,7 @@ function scheduleGeneration() {
 function addWorkFromGeneration() {
   const gen = state.generation;
   const marketing = isMarketingGeneration(gen);
-  const item = { id: `work-${Date.now()}`, hotelId: gen.hotelContext?.id || currentHotel()?.id || "", title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, marketing, activityId: marketing ? "summer-family-stay" : "" };
+  const item = { id: `work-${Date.now()}`, hotelId: gen.hotelContext?.id || currentHotel()?.id || "", hotelContext: gen.hotelContext || null, title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, idea: gen.idea || "", marketing, activityId: marketing ? "summer-family-stay" : "" };
   state.works = [item, ...state.works.filter((work) => work.id !== item.id)];
   write("yingdian_works", state.works);
   if (marketing) {
@@ -912,7 +918,7 @@ function handleAction(action, target) {
   }
   if (action === "works-refresh") { showToast("作品列表已刷新"); return; }
   if (action === "works-filter") { state.worksFilter = data.filter || "image"; renderApp(); return; }
-  if (action === "work-open") { const work = state.works.find((item) => item.id === data.id); if (isMarketingWork(work)) { go("marketingActivity"); return; } go("result", { kind: work?.type === "15秒视频" ? "video" : "image" }); return; }
+  if (action === "work-open") { const work = state.works.find((item) => item.id === data.id); if (isMarketingWork(work)) { go("marketingActivity"); return; } go("result", { kind: work?.type === "15秒视频" ? "video" : "image", source: work?.source || "imageCreate", workId: work?.id || "" }); return; }
   if (["hotel-edit", "hotel-logo", "hotel-logo-remove", "hotel-form-cancel", "hotel-form-save"].includes(action)) {
     showToast("酒店信息由酒店AI助手统一管理");
     return;
