@@ -231,19 +231,26 @@ function renderQuickPrompt({ value, bind, placeholder, images, removeAction, kin
   return `<article class="quick-prompt-card"><h2 class="quick-prompt-label">${esc(label)}</h2><textarea class="quick-prompt-idea" data-bind="${bind}" aria-label="${esc(label)}" placeholder="${esc(placeholder)}">${esc(value)}</textarea><div class="quick-material-zone">${suggestionMarkup}${selectedAssets}</div><div class="quick-prompt-actions"><button class="quick-asset-action" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}">${icon("image")}<span>${esc(assetLabel)}</span></button><button class="quick-voice-action ${listening ? "listening" : ""}" data-action="voice-input" data-field="${bind}">${icon("mic")}<span>${listening ? "正在听" : "语音输入"}</span></button></div></article>`;
 }
 
-function displayContentLabels(showQr) {
+function displayHotelLabels() {
   const labels = [];
   if (state.hotelUsage.name) labels.push("酒店名称");
   if (state.hotelUsage.address) labels.push("酒店地址");
   if (state.hotelUsage.logo && currentHotel()?.logo) labels.push("Logo");
-  if (showQr && state.selectedQr && state.qrUsage) labels.push("二维码");
   return labels;
 }
 
-function renderDisplayContentRow(media, showQr) {
-  const labels = displayContentLabels(showQr);
-  const label = media === "video" ? "视频上显示的内容" : "图片上显示的内容";
-  return `<button class="display-content-row ${labels.length ? "has-selection" : ""}" data-action="display-content" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="display-content-main"><strong>${label}</strong><span>${labels.length ? labels.join("、") : "未添加"}</span></span>${icon("chevron")}</button>`;
+function renderHotelInfoRow(media, showQr) {
+  const labels = displayHotelLabels();
+  return `<button class="display-content-row ${labels.length ? "has-selection" : ""}" data-action="display-content" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="display-content-main"><strong>酒店信息</strong><span>${labels.length ? labels.join("、") : "未使用"}</span></span>${icon("chevron")}</button>`;
+}
+
+function renderQrSettingRow() {
+  const selected = state.selectedQr;
+  return `<div class="display-setting-row ${selected ? "has-selection" : ""}"><button class="display-content-row ${selected ? "has-selection" : ""}" data-action="qr-sheet" aria-label="${selected ? "更换二维码" : "添加二维码"}"><span class="display-content-main"><strong>二维码</strong><span>${selected ? "已添加" : "未添加"}</span></span>${icon("chevron")}</button>${selected ? `<button class="display-row-remove" data-action="qr-remove" aria-label="移除二维码">${icon("trash")}</button>` : ""}</div>`;
+}
+
+function renderDisplaySettings(media, showQr) {
+  return `<section class="display-settings-section"><div class="quick-setting-head"><h2>使用信息（可选）</h2></div><div class="display-setting-list">${renderHotelInfoRow(media, showQr)}${showQr ? renderQrSettingRow() : ""}</div></section>`;
 }
 
 function renderQuickRatioSection(kind, title) {
@@ -284,13 +291,13 @@ function musicRow() {
 
 function renderImageCreate() {
   const action = `<button class="primary-btn" data-action="start-generation" data-source="imageCreate">${icon("sparkle")}开始生成宣传图</button>`;
-  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "image-idea", placeholder: "描述你想做的宣传图，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "image", listKey: "selectedImages", assetLabel: "添加图片" })}<div class="quick-settings-panel">${renderDisplayContentRow("image", true)}${renderQuickRatioSection("image", "画幅比例")}</div></div>`;
+  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "image-idea", placeholder: "描述你想做的宣传图，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "image", listKey: "selectedImages", assetLabel: "添加图片" })}<div class="quick-settings-panel">${renderDisplaySettings("image", true)}${renderQuickRatioSection("image", "画幅比例")}</div></div>`;
   return pageShell({ title: "做宣传图", content, action });
 }
 
 function renderVideoCreate() {
   const action = `<button class="primary-btn" data-action="start-generation" data-source="videoCreate">${icon("sparkle")}开始生成15秒视频</button>`;
-  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "video-idea", placeholder: "描述你想做的15秒视频，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "video", listKey: "selectedImages", assetLabel: "添加图片或视频" })}<div class="quick-settings-panel">${renderDisplayContentRow("video", false)}${renderQuickRatioSection("video", "视频比例")}${renderQuickMusicSection()}</div></div>`;
+  const content = `<div class="quick-create-content">${renderQuickPrompt({ value: state.idea, bind: "video-idea", placeholder: "描述你想做的15秒视频，越具体越容易生成", images: state.selectedImages, removeAction: "asset-remove", kind: "video", listKey: "selectedImages", assetLabel: "添加图片或视频" })}<div class="quick-settings-panel">${renderDisplaySettings("video", false)}${renderQuickRatioSection("video", "视频比例")}${renderQuickMusicSection()}</div></div>`;
   return pageShell({ title: "做15秒视频", content, action });
 }
 
@@ -310,7 +317,7 @@ function renderTemplateCreate() {
   const item = selectedTemplate();
   const action = `<button class="primary-btn" data-action="start-generation" data-source="templateCreate">${icon("sparkle")}生成成品</button>`;
   const templatePreview = `<section class="section template-context-section"><div class="template-context-card"><button class="template-context-thumb" data-action="template-preview" data-template="${item.id}" aria-label="查看${esc(item.name)}样式"><img src="${item.image}" alt="${esc(item.name)}样式缩略图"></button><div class="template-context-copy"><div class="template-context-heading"><div><p class="eyebrow">当前模板</p><h2 class="section-title">${esc(item.name)}</h2><p class="section-note">${esc(item.type)} · ${esc(item.scene)}</p></div><span class="template-context-ratio">${esc(item.ratio)}</span></div><p class="template-context-hint">上传主图，套用这个样式</p><div class="template-context-actions"><button class="text-action" data-action="template-preview" data-template="${item.id}">查看样式 ${icon("chevron")}</button><button class="text-action" data-nav="templates">重新选择 ${icon("chevron")}</button></div></div></div></section>`;
-  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加主图", suggestion: templateMaterialHint(item) })}<div class="quick-settings-panel">${renderDisplayContentRow("image", item.qr)}</div></div>`;
+  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加主图", suggestion: templateMaterialHint(item) })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
   return pageShell({ title: "模板创作", content, action });
 }
 
@@ -353,7 +360,7 @@ function renderMarketingCreate() {
   const summaryNote = adjusted ? "在亲子房、早餐基础上，补充周边亲子体验，延展成一份轻度假安排。" : "围绕亲子房、早餐和儿童用品，保持明亮、轻松的入住氛围。";
   const summary = `<section class="section"><div class="editorial-card"><div class="editorial-card-body"><p class="eyebrow">策划摘要</p><h2 class="section-title">${summaryTitle}</h2><p class="section-note">${summaryNote}</p><div class="marketing-summary-action"><button class="text-action" data-nav="marketingPlan">查看完整策划 ${icon("chevron")}</button></div></div></div></section>`;
   const typeSelector = `<section class="section"><div class="section-head"><h2 class="section-title">内容类型</h2><span class="section-note">选择一种先生成</span></div><div class="segmented"><button class="segment ${image ? "active" : ""}" data-action="marketing-type" data-type="image">文案＋图片</button><button class="segment ${!image ? "active" : ""}" data-action="marketing-type" data-type="video">文案＋视频</button></div></section>`;
-  const settings = `${renderDisplayContentRow(image ? "image" : "video", image)}${renderQuickRatioSection(image ? "image" : "video", image ? "图片比例" : "视频比例")}${image ? "" : renderQuickMusicSection()}`;
+  const settings = `${renderDisplaySettings(image ? "image" : "video", image)}${renderQuickRatioSection(image ? "image" : "video", image ? "图片比例" : "视频比例")}${image ? "" : renderQuickMusicSection()}`;
   const content = `<div class="quick-create-content marketing-quick-create">${summary}${typeSelector}${renderQuickPrompt({ value: state.marketingIdea, bind: "marketing-idea", placeholder: "编辑基于策划生成的内容想法", images: state.marketingImages, removeAction: "marketing-asset-remove", kind: image ? "image" : "video", listKey: "marketingImages", assetLabel: image ? "添加图片" : "添加图片或视频", suggestion: "亲子房环境、早餐餐台、儿童用品和酒店公共空间照片" })}<div class="quick-settings-panel">${settings}</div></div>`;
   return pageShell({ title: "营销内容创作", content, action });
 }
@@ -496,7 +503,7 @@ function renderEdit() {
   const action = `<button class="primary-btn" data-action="start-generation" data-source="edit" data-kind="${kind}">${icon("sparkle")}生成修改版</button>`;
   const media = `<section class="section edit-original-section"><div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="原作品"><div class="result-overlay"><small>原作品</small><strong>${video ? "在这里，住进一段暑假" : "这个夏天，和孩子住得刚刚好"}</strong></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div></section>`;
   const prompt = renderQuickPrompt({ value: state.editIdea, bind: "edit-idea", placeholder: video ? "描述想怎么调整，也可以添加或更换图片、视频" : "描述想怎么调整，也可以添加或更换图片", images: state.editImages, removeAction: "edit-asset-remove", kind: video ? "video" : "image", listKey: "editImages", assetLabel: video ? "添加图片或视频" : "添加图片", label: "想改什么？" });
-  const settings = `${renderDisplayContentRow(video ? "video" : "image", !video)}${renderQuickRatioSection(video ? "video" : "image", video ? "视频比例" : "画幅比例")}${video ? renderQuickMusicSection() : ""}`;
+  const settings = `${renderDisplaySettings(video ? "video" : "image", !video)}${renderQuickRatioSection(video ? "video" : "image", video ? "视频比例" : "画幅比例")}${video ? renderQuickMusicSection() : ""}`;
   const content = `${media}<div class="quick-create-content edit-quick-create">${prompt}<div class="quick-settings-panel">${settings}</div></div>`;
   return pageShell({ title: video ? "修改15秒视频" : "修改宣传图", content, action });
 }
@@ -642,12 +649,10 @@ function sheetContent(kind, payload) {
   if (kind === "display-content") {
     const hotel = currentHotel();
     const media = payload.media === "video" ? "video" : "image";
-    const showQr = Boolean(payload.showQr);
-    const title = media === "video" ? "视频上显示的内容" : "图片上显示的内容";
+    const title = "酒店信息";
     const hotelRows = hotel ? [["name", "酒店名称", hotel.name], ["address", "酒店地址", hotel.address], ...(hotel.logo ? [["logo", "酒店标志", `${hotel.name} Logo`]] : [])] : [];
-    const hotelSection = hotel ? `<div class="display-current-hotel is-readonly"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="display-current-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span></span><span class="display-context-badge">当前酒店</span></div><div class="display-option-list">${hotelRows.map(([key, label, value]) => `<button class="display-option-row ${state.hotelUsage[key] ? "selected" : ""}" data-action="display-hotel-use" data-key="${key}" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="display-option-copy"><strong>${label}</strong><span>${esc(value)}</span></span><span class="display-selection-toggle">${icon("check")}</span></button>`).join("")}</div>` : `<div class="empty-card compact"><h3>尚未选择酒店</h3><p>请先返回酒店AI助手选择酒店。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`;
-    const qrSection = showQr ? `<div class="display-group-head material-group"><strong>二维码</strong><span>可选</span></div><div class="display-option-list"><div class="display-option-row qr-display-row ${state.selectedQr && state.qrUsage ? "selected" : ""}"><span class="display-option-copy"><strong>二维码</strong><span>${state.selectedQr ? "已添加，可选择是否显示" : "未添加，可添加 1 个"}</span></span><span class="display-qr-actions">${state.selectedQr ? `<button class="display-selection-toggle" data-action="display-qr-use" data-media="${media}" data-qr="1" aria-label="${state.qrUsage ? "不显示二维码" : "显示二维码"}">${icon("check")}</button><button class="display-text-action danger" data-action="display-qr-remove" data-media="${media}" data-qr="1">移除</button>` : `<button class="display-text-action" data-action="display-qr-add" data-media="${media}" data-qr="1">添加</button>`}</span></div></div>` : "";
-    return `<div class="display-content-sheet"><div class="display-sheet-head"><div><h3>${title}</h3><p>选择要直接显示在${media === "video" ? "视频" : "图片"}画面上的信息</p></div><button class="display-sheet-close" data-action="display-content-done" aria-label="关闭">${icon("close")}</button></div><div class="display-group-head"><strong>酒店信息</strong><span>来自酒店AI助手</span></div>${hotelSection}${qrSection}<button class="display-sheet-done" data-action="display-content-done">完成</button></div>`;
+    const hotelSection = hotel ? `<div class="display-current-hotel is-readonly"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="display-current-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span></span><span class="display-context-badge">当前酒店</span></div><div class="display-option-list">${hotelRows.map(([key, label, value]) => `<button class="display-option-row ${state.hotelUsage[key] ? "selected" : ""}" data-action="display-hotel-use" data-key="${key}" data-media="${media}"><span class="display-option-copy"><strong>${label}</strong><span>${esc(value)}</span></span><span class="display-selection-toggle">${icon("check")}</span></button>`).join("")}</div>` : `<div class="empty-card compact"><h3>尚未选择酒店</h3><p>请先返回酒店AI助手选择酒店。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`;
+    return `<div class="display-content-sheet"><div class="display-sheet-head"><div><h3>${title}</h3><p>选择要添加到${media === "video" ? "视频" : "图片"}中的酒店信息</p></div><button class="display-sheet-close" data-action="display-content-done" aria-label="关闭">${icon("close")}</button></div>${hotelSection}<button class="display-sheet-done" data-action="display-content-done">完成</button></div>`;
   }
   if (kind === "asset-channel") {
     const isQr = payload.kind === "qr";
