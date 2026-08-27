@@ -34,19 +34,16 @@ const templates = [
   { id: "room", name: "房间上新", type: "朋友圈海报", scene: "客房与设施介绍", ratio: "1:1", image: ASSET.room, qr: false }
 ];
 
-const defaultHotels = [
-  { id: "hotel-1", name: "云栖酒店·杭州", address: "杭州", logo: "云" }
-];
+const defaultHotelContext = { id: "hotel-1", name: "云栖酒店·杭州", address: "杭州", logo: "云" };
 
 const defaultWorks = [
-  { id: "sample-1", title: "夏日亲子入住推广", type: "宣传图", status: "已完成", image: ASSET.night, time: "今天 10:24", marketing: true },
-  { id: "sample-2", title: "早餐套餐", type: "宣传图", status: "已完成", image: ASSET.dining, time: "昨天 16:08" },
-  { id: "sample-3", title: "周末客房焕新", type: "15秒视频", status: "已完成", image: ASSET.room, time: "8月17日" }
+  { id: "sample-1", hotelId: "hotel-1", title: "夏日亲子入住推广", type: "宣传图", status: "已完成", image: ASSET.night, time: "今天 10:24", marketing: true },
+  { id: "sample-2", hotelId: "hotel-1", title: "早餐套餐", type: "宣传图", status: "已完成", image: ASSET.dining, time: "昨天 16:08" },
+  { id: "sample-3", hotelId: "hotel-1", title: "周末客房焕新", type: "15秒视频", status: "已完成", image: ASSET.room, time: "8月17日" }
 ];
 
 const state = {
-  hotels: read("yingdian_hotels", defaultHotels),
-  currentHotelId: localStorage.getItem("yingdian_current_hotel") || "hotel-1",
+  hotelContext: readPlatformHotelContext(),
   works: read("yingdian_works", defaultWorks),
   homeType: "朋友圈海报",
   worksFilter: "image",
@@ -70,8 +67,7 @@ const state = {
   voiceTimer: null,
   generation: read("yingdian_generation", null),
   toastTimer: null,
-  sheet: null,
-  hotelForm: { name: "", address: "", logo: "" }
+  sheet: null
 };
 
 function read(key, fallback) {
@@ -87,8 +83,29 @@ function write(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function readPlatformHotelContext() {
+  const params = new URLSearchParams(location.search);
+  const incomingId = params.get("hotel_id");
+  const incomingName = params.get("hotel_name");
+  if (incomingId && incomingName) {
+    const incomingContext = {
+      id: incomingId,
+      name: incomingName,
+      address: params.get("hotel_address") || "",
+      logo: params.get("hotel_logo") || ""
+    };
+    sessionStorage.setItem("yingdian_platform_hotel_context", JSON.stringify(incomingContext));
+    return incomingContext;
+  }
+  try {
+    return JSON.parse(sessionStorage.getItem("yingdian_platform_hotel_context")) || defaultHotelContext;
+  } catch (error) {
+    return defaultHotelContext;
+  }
+}
+
 function currentHotel() {
-  return state.hotels.find((hotel) => hotel.id === state.currentHotelId) || state.hotels[0] || null;
+  return state.hotelContext || null;
 }
 
 function isMarketingWork(work) {
@@ -172,7 +189,7 @@ function topHome() {
 
 function hotelSelect() {
   const hotel = currentHotel();
-  return `<button class="hotel-select" data-action="hotel-sheet"><span>${hotel ? esc(hotel.name) : "添加酒店"}</span>${icon("down")}</button>`;
+  return `<span class="hotel-context-label"><span>${hotel ? esc(hotel.name) : "未选择酒店"}</span></span>`;
 }
 
 function renderHome() {
@@ -245,10 +262,10 @@ function templateMaterialHint(item) {
 
 function renderHotelCard(showQr = false) {
   const hotel = currentHotel();
-  if (!hotel) return `<div class="empty-card"><div class="empty-icon">${icon("building")}</div><h3>还没有酒店信息</h3><p>添加酒店后，可以在创作时选择名称、地址和酒店标志。</p><button class="secondary-btn" data-nav="hotelNew">新增酒店</button></div>`;
+  if (!hotel) return `<div class="empty-card"><div class="empty-icon">${icon("building")}</div><h3>尚未选择酒店</h3><p>请先在酒店AI助手中选择酒店，再返回营点AI。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`;
   const rows = [["name", "酒店名称", hotel.name], ["address", "酒店地址", hotel.address]];
   if (hotel.logo) rows.push(["logo", "酒店标志", hotel.logo]);
-  return `<div class="hotel-card"><div class="hotel-card-head"><span class="hotel-card-caption">当前酒店</span><button class="hotel-switch" data-action="hotel-sheet">切换${icon("down")}</button></div><div class="hotel-use-list">${rows.map(([key, label, value]) => `<button class="check-row ${state.hotelUsage[key] ? "selected" : ""} ${key === "logo" ? "has-logo" : ""}" data-action="hotel-use" data-key="${key}"><span class="check-copy"><strong>${label}</strong><span class="${key === "logo" ? "hotel-value-logo" : ""}">${key === "logo" ? `<span class="hotel-logo">${esc(value)}</span>` : esc(value)}</span></span><span class="checkbox">${icon("check")}</span></button>`).join("")}</div>${showQr ? `<div class="hotel-card-divider"></div>${renderQrRow()}` : ""}</div>`;
+  return `<div class="hotel-card"><div class="hotel-card-head"><span class="hotel-card-caption">当前酒店</span><span class="hotel-context-readonly">由酒店AI助手提供</span></div><div class="hotel-use-list">${rows.map(([key, label, value]) => `<button class="check-row ${state.hotelUsage[key] ? "selected" : ""} ${key === "logo" ? "has-logo" : ""}" data-action="hotel-use" data-key="${key}"><span class="check-copy"><strong>${label}</strong><span class="${key === "logo" ? "hotel-value-logo" : ""}">${key === "logo" ? `<span class="hotel-logo">${esc(value)}</span>` : esc(value)}</span></span><span class="checkbox">${icon("check")}</span></button>`).join("")}</div>${showQr ? `<div class="hotel-card-divider"></div>${renderQrRow()}` : ""}</div>`;
 }
 
 function renderQrRow() {
@@ -314,8 +331,8 @@ function renderMarketingPlan() {
   const topicParam = new URLSearchParams(location.search).get("topic");
   const adjustedPlan = sessionStorage.getItem("yingdian_marketing_adjusted") === "1" && (!topicParam || topicParam === "暑期亲子入住推广");
   const topic = adjustedPlan ? "入住酒店＋周边亲子体验" : (topicParam || "暑期亲子入住推广");
-  const hotelName = hotel ? hotel.name : "尚未添加酒店";
-  const hotelAddress = hotel ? hotel.address : "添加酒店后可继续策划";
+  const hotelName = hotel ? hotel.name : "尚未选择酒店";
+  const hotelAddress = hotel ? hotel.address : "请先返回酒店AI助手选择酒店";
   const hotelLogo = hotel?.logo || hotelName.slice(0, 1);
   const adjust = state.marketingAdjust;
   const reasonTitle = adjustedPlan ? "把入住和周边亲子体验连起来" : "暑期尾声仍有一波短途亲子需求";
@@ -323,7 +340,7 @@ function renderMarketingPlan() {
   const focusItems = adjustedPlan ? "<b>亲子房</b><b>早餐</b><b>周边亲子活动</b>" : "<b>亲子房</b><b>早餐</b><b>周边亲子去处</b>";
   const expressionDirection = adjustedPlan ? "从介绍酒店变为“入住＋周边体验”，保持轻松、有画面感的周末安排。" : "明亮、轻松、有具体入住画面；不只介绍设施，也让人感到这趟周末安排很省心。";
   const materialSuggestion = adjustedPlan ? "客房、早餐、家庭入住场景，补充一张酒店周边环境或亲子活动的照片。" : "客房、早餐、家庭入住场景，最好能补充一张酒店周边亲子去处的照片。";
-  const content = `<div class="marketing-plan-content"><section class="marketing-topic-card"><div class="marketing-topic-topline"><span class="marketing-topic-tag">AI 推荐营点</span><span class="marketing-topic-date">8月中下旬</span></div><h2 class="marketing-topic-title">${esc(topic)}</h2><p class="marketing-topic-reason">抓住暑期最后两周的短途亲子出行需求，把亲子房、早餐和周边体验串成一件值得现在宣传的事。</p><div class="marketing-hotel-line"><span class="marketing-hotel-mark">${esc(hotelLogo)}</span><span>本次酒店</span><strong>${esc(hotelName)}</strong><button class="marketing-hotel-switch" data-action="hotel-sheet">切换</button></div><span class="marketing-hotel-address">${esc(hotelAddress)}</span></section><section class="marketing-section"><h2 class="marketing-section-title">推荐理由</h2><div class="marketing-surface-card"><div class="marketing-insight-intro"><span class="marketing-insight-icon">${icon("sparkle")}</span><div><strong>${reasonTitle}</strong><p>${reasonBody}</p></div></div><div class="marketing-metric-grid"><div><span>建议时间</span><strong>8月中下旬</strong></div><div><span>目标客群</span><strong>周末亲子家庭</strong></div></div></div></section><section class="marketing-section"><h2 class="marketing-section-title">策划详情</h2><div class="marketing-surface-card marketing-detail-list"><div><span>宣传目标</span><strong>让家庭客人产生“现在就去住一晚”的入住兴趣</strong></div><div><span>宣传重点</span><p>${focusItems}</p></div><div><span>表达方向</span><strong>${expressionDirection}</strong></div><div><span>素材建议</span><strong>${materialSuggestion}</strong></div></div></section><section class="marketing-section"><h2 class="marketing-section-title">内容清单</h2><div class="marketing-deliverables"><div><span class="marketing-deliverable-icon">${icon("copy")}</span><span><strong>通用发布文案</strong><small>围绕亲子周末入住的发布文案方向</small></span><em>待生成</em></div><div><span class="marketing-deliverable-icon">${icon("image")}</span><span><strong>宣传图</strong><small>明亮的亲子入住场景，一眼看懂主推重点</small></span><em>待生成</em></div><div><span class="marketing-deliverable-icon">${icon("video")}</span><span><strong>15秒视频</strong><small>用入住动线补充氛围与细节</small></span><em>待生成</em></div></div></section><section class="marketing-section marketing-adjust-section"><button class="marketing-adjust-row" data-action="marketing-adjust-open" aria-haspopup="dialog" aria-controls="marketing-adjust-sheet" aria-expanded="${adjust.open ? "true" : "false"}"><span><strong>${adjust.pending ? "查看调整结果" : "补充一点情况"}</strong><small>${adjust.pending ? "有一版调整后的策划等待确认" : "告诉我一个酒店最近的情况，我会基于当前营点再想一版"}</small></span>${icon("chevron")}</button></section></div>`;
+  const content = `<div class="marketing-plan-content"><section class="marketing-topic-card"><div class="marketing-topic-topline"><span class="marketing-topic-tag">AI 推荐营点</span><span class="marketing-topic-date">8月中下旬</span></div><h2 class="marketing-topic-title">${esc(topic)}</h2><p class="marketing-topic-reason">抓住暑期最后两周的短途亲子出行需求，把亲子房、早餐和周边体验串成一件值得现在宣传的事。</p><div class="marketing-hotel-line"><span class="marketing-hotel-mark">${esc(hotelLogo)}</span><span>本次酒店</span><strong>${esc(hotelName)}</strong></div><span class="marketing-hotel-address">${esc(hotelAddress)}</span></section><section class="marketing-section"><h2 class="marketing-section-title">推荐理由</h2><div class="marketing-surface-card"><div class="marketing-insight-intro"><span class="marketing-insight-icon">${icon("sparkle")}</span><div><strong>${reasonTitle}</strong><p>${reasonBody}</p></div></div><div class="marketing-metric-grid"><div><span>建议时间</span><strong>8月中下旬</strong></div><div><span>目标客群</span><strong>周末亲子家庭</strong></div></div></div></section><section class="marketing-section"><h2 class="marketing-section-title">策划详情</h2><div class="marketing-surface-card marketing-detail-list"><div><span>宣传目标</span><strong>让家庭客人产生“现在就去住一晚”的入住兴趣</strong></div><div><span>宣传重点</span><p>${focusItems}</p></div><div><span>表达方向</span><strong>${expressionDirection}</strong></div><div><span>素材建议</span><strong>${materialSuggestion}</strong></div></div></section><section class="marketing-section"><h2 class="marketing-section-title">内容清单</h2><div class="marketing-deliverables"><div><span class="marketing-deliverable-icon">${icon("copy")}</span><span><strong>通用发布文案</strong><small>围绕亲子周末入住的发布文案方向</small></span><em>待生成</em></div><div><span class="marketing-deliverable-icon">${icon("image")}</span><span><strong>宣传图</strong><small>明亮的亲子入住场景，一眼看懂主推重点</small></span><em>待生成</em></div><div><span class="marketing-deliverable-icon">${icon("video")}</span><span><strong>15秒视频</strong><small>用入住动线补充氛围与细节</small></span><em>待生成</em></div></div></section><section class="marketing-section marketing-adjust-section"><button class="marketing-adjust-row" data-action="marketing-adjust-open" aria-haspopup="dialog" aria-controls="marketing-adjust-sheet" aria-expanded="${adjust.open ? "true" : "false"}"><span><strong>${adjust.pending ? "查看调整结果" : "补充一点情况"}</strong><small>${adjust.pending ? "有一版调整后的策划等待确认" : "告诉我一个酒店最近的情况，我会基于当前营点再想一版"}</small></span>${icon("chevron")}</button></section></div>`;
   const action = `<button class="primary-btn" data-nav="marketingCreate">认可策划，开始创作</button>`;
   return pageShell({ title: "营销策划", content, action, overlay: marketingAdjustSheet() });
 }
@@ -353,7 +370,7 @@ function generationMeta(gen) {
   const mediaLabel = gen.kind === "video" ? "15秒视频" : "宣传图";
   const isMarketing = isMarketingGeneration(gen);
   const isTemplate = gen.source === "templateCreate";
-  const hotel = currentHotel();
+  const hotel = gen.hotelContext || currentHotel();
   const completed = Array.isArray(gen.completed) ? gen.completed : [];
   const currentCombo = isMarketing ? `通用发布文案＋${mediaLabel}` : mediaLabel;
   const pending = isMarketing ? ["通用发布文案", mediaLabel].filter((item) => !completed.includes(item)) : [mediaLabel];
@@ -428,7 +445,8 @@ function renderResult() {
   const video = kind === "video";
   const marketing = isMarketingGeneration(state.generation) || resultParams.get("source") === "marketingActivity";
   const template = state.generation?.source === "templateCreate";
-  const media = `<div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="${video ? "15秒视频封面" : "宣传图作品"}"><div class="result-overlay"><small>云栖酒店·杭州</small><strong>${video ? "在这里，住进一段暑假" : "这个夏天，和孩子住得刚刚好"}</strong><span>${video ? "15秒视频 · 暑期亲子入住推广" : "宣传图 · 暑期亲子入住推广"}</span></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div>`;
+  const resultHotel = state.generation?.hotelContext || currentHotel();
+  const media = `<div class="result-media ${video ? "video" : "image"}"><img src="${video ? ASSET.room : ASSET.night}" alt="${video ? "15秒视频封面" : "宣传图作品"}"><div class="result-overlay"><small>${esc(resultHotel?.name || "当前酒店")}</small><strong>${video ? "在这里，住进一段暑假" : "这个夏天，和孩子住得刚刚好"}</strong><span>${video ? "15秒视频 · 暑期亲子入住推广" : "宣传图 · 暑期亲子入住推广"}</span></div>${video ? `<button class="play-btn" data-action="play">${icon("play")}</button>` : ""}</div>`;
   const resultExplanation = marketing ? "" : template
     ? `<section class="section result-explanation"><p class="eyebrow">创作说明</p><p class="result-explanation-title">已按所选样式完成主图替换</p></section>`
     : `<section class="section result-explanation"><p class="eyebrow">创作说明</p><p class="result-explanation-title">根据你的想法生成</p><p class="result-explanation-copy">${esc(state.generation?.idea || "围绕酒店特色，生成一份适合发布的内容。")}</p></section>`;
@@ -485,7 +503,9 @@ function renderEdit() {
 
 function renderWorks() {
   const filter = state.worksFilter;
-  const ordinaryWorks = state.works.map((work) => work.type === "模板创作" ? { ...work, type: "宣传图" } : work);
+  const hotelId = currentHotel()?.id;
+  const contextWorks = state.works.filter((work) => !work.hotelId || work.hotelId === hotelId);
+  const ordinaryWorks = contextWorks.map((work) => work.type === "模板创作" ? { ...work, type: "宣传图" } : work);
   const filtered = ordinaryWorks.filter((work) => !isMarketingWork(work) && (filter === "image" ? work.type !== "15秒视频" : work.type === "15秒视频"));
   const workList = filtered.length ? `<div class="work-list">${filtered.map((work) => `<button class="work-item" data-action="work-open" data-id="${work.id}"><span class="work-thumb"><img src="${work.image}" alt="${esc(work.title)}"></span><span class="work-copy"><strong>${esc(work.title)}</strong><span>${filter === "image" ? "图片" : "视频"} · ${esc(work.status)} · ${esc(work.time)}</span></span>${icon("chevron")}</button>`).join("")}</div>` : `<div class="empty-card compact"><div class="empty-icon">${icon(filter === "image" ? "image" : "video")}</div><h3>还没有${filter === "image" ? "图片" : "视频"}作品</h3><p>完成生成后，作品会自动保存在这里。</p></div>`;
   const marketingCompleted = marketingCompletedItems();
@@ -501,23 +521,18 @@ function renderWorks() {
 
 function renderProfile() {
   const hotel = currentHotel();
-  const content = `<section class="section"><div class="profile-user-card"><span class="profile-avatar">${icon("user")}</span><span class="profile-copy"><strong>平台账户</strong><span>账户与酒店信息由酒店AI助手平台管理</span></span></div></section><section class="section"><div class="section-head"><div><h2 class="section-title">酒店与品牌信息</h2><p class="section-note">创作时默认使用当前酒店</p></div><button class="text-action" data-nav="hotels">管理 ${icon("chevron")}</button></div>${hotel ? `<button class="profile-hotel-card" data-nav="hotels"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="profile-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span><small>当前酒店 · 共 ${state.hotels.length} 家</small></span>${icon("chevron")}</button>` : `<div class="empty-card compact"><h3>尚未添加酒店</h3><p>添加后可用于创作和营销策划。</p><button class="secondary-btn" data-nav="hotelNew">新增酒店</button></div>`}</section><section class="section"><h2 class="section-title">常用功能</h2><div class="menu-list"><button class="menu-row" data-nav="assets">${icon("layers")}<span>常用素材</span><small>图片与二维码 ${icon("chevron")}</small></button></div></section>`;
+  const content = `<section class="section"><div class="profile-user-card"><span class="profile-avatar">${icon("user")}</span><span class="profile-copy"><strong>平台账户</strong><span>账户与酒店信息由酒店AI助手平台管理</span></span></div></section><section class="section"><div class="section-head"><div><h2 class="section-title">当前酒店</h2><p class="section-note">进入营点AI后保持平台所选酒店</p></div></div>${hotel ? `<div class="profile-hotel-card is-readonly"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="profile-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span><small>由酒店AI助手提供</small></span></div>` : `<div class="empty-card compact"><h3>尚未选择酒店</h3><p>请先返回酒店AI助手选择酒店。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`}</section><section class="section"><h2 class="section-title">常用功能</h2><div class="menu-list"><button class="menu-row" data-nav="assets">${icon("layers")}<span>常用素材</span><small>图片与二维码 ${icon("chevron")}</small></button></div></section>`;
   return pageShell({ title: "我的", subtitle: "账户与常用设置", content, nav: true });
 }
 
 function renderHotels() {
-  const content = `<section class="section"><div class="section-head"><div><p class="eyebrow">酒店管理</p><h2 class="section-title">${state.hotels.length} 家酒店</h2></div><button class="primary-btn" data-nav="hotelNew">${icon("plus")}新增酒店</button></div><div class="hotel-list">${state.hotels.map((hotel) => `<div class="hotel-item"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="list-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}${hotel.id === state.currentHotelId ? " · 当前使用" : ""}</span></span><button class="icon-btn" data-action="hotel-edit" data-id="${hotel.id}" aria-label="编辑">${icon("edit")}</button></div>`).join("")}</div></section>`;
-  return pageShell({ title: "酒店与品牌信息", subtitle: "管理多个酒店的基础信息", content });
+  const hotel = currentHotel();
+  const content = `<section class="section"><div class="surface-card platform-managed-note"><span class="profile-avatar">${icon("building")}</span><div><h2 class="section-title">酒店信息由平台管理</h2><p class="section-note">营点AI会持续使用酒店AI助手当前所选酒店，不在应用内新增、编辑或切换酒店。</p></div></div></section>${hotel ? `<section class="section"><div class="profile-hotel-card is-readonly"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="profile-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span><small>当前酒店信息</small></span></div></section>` : ""}`;
+  return pageShell({ title: "当前酒店", content, action: `<button class="primary-btn" data-action="platform-back">返回酒店AI助手</button>` });
 }
 
-function renderHotelForm(edit = false) {
-  const params = new URLSearchParams(location.search);
-  const id = params.get("id");
-  const existing = state.hotels.find((hotel) => hotel.id === id);
-  if (edit && existing && !state.hotelForm.name) state.hotelForm = { name: existing.name, address: existing.address, logo: existing.logo || "" };
-  const form = state.hotelForm;
-  const content = `<section class="section"><div class="surface-card form-stack"><label class="field-label">酒店名称 <small>必填</small></label><input class="text-input" data-bind="hotel-name" value="${esc(form.name)}" placeholder="输入酒店名称"><label class="field-label">酒店地址 <small>必填</small></label><input class="text-input" data-bind="hotel-address" value="${esc(form.address)}" placeholder="输入酒店地址"><label class="field-label">酒店标志 <small>可选</small></label><button class="upload-zone" data-action="hotel-logo"><span>${form.logo ? `<span class="hotel-logo">${esc(form.logo)}</span>` : icon("upload")}</span><span>${form.logo ? "更换酒店标志" : "上传酒店标志"}</span></button>${form.logo ? `<button class="text-action" data-action="hotel-logo-remove">移除酒店标志</button>` : ""}</div></section><p class="inline-help">酒店标志、地址和酒店名称都可以随时编辑；保存后会回到酒店列表。</p>`;
-  return pageShell({ title: edit ? "编辑酒店" : "新增酒店", subtitle: edit ? "更新酒店基础信息" : "添加一个新的酒店档案", content, action: `<div class="button-row"><button class="secondary-btn" data-action="hotel-form-cancel">取消</button><button class="primary-btn" data-action="hotel-form-save" data-edit="${edit ? "1" : "0"}" data-id="${id || ""}">保存酒店</button></div>` });
+function renderHotelForm() {
+  return renderHotels();
 }
 
 function renderAssets() {
@@ -571,8 +586,6 @@ function bindInputs() {
       if (bind === "marketing-idea") state.marketingIdea = input.value;
       if (bind === "marketing-adjust") state.marketingAdjust.draft = input.value;
       if (bind === "edit-idea") state.editIdea = input.value;
-      if (bind === "hotel-name") state.hotelForm.name = input.value;
-      if (bind === "hotel-address") state.hotelForm.address = input.value;
     });
   });
 }
@@ -592,7 +605,7 @@ function scheduleGeneration() {
 function addWorkFromGeneration() {
   const gen = state.generation;
   const marketing = isMarketingGeneration(gen);
-  const item = { id: `work-${Date.now()}`, title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, marketing, activityId: marketing ? "summer-family-stay" : "" };
+  const item = { id: `work-${Date.now()}`, hotelId: gen.hotelContext?.id || currentHotel()?.id || "", title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, marketing, activityId: marketing ? "summer-family-stay" : "" };
   state.works = [item, ...state.works.filter((work) => work.id !== item.id)];
   write("yingdian_works", state.works);
   if (marketing) {
@@ -632,12 +645,9 @@ function sheetContent(kind, payload) {
     const showQr = Boolean(payload.showQr);
     const title = media === "video" ? "视频上显示的内容" : "图片上显示的内容";
     const hotelRows = hotel ? [["name", "酒店名称", hotel.name], ["address", "酒店地址", hotel.address], ...(hotel.logo ? [["logo", "酒店标志", `${hotel.name} Logo`]] : [])] : [];
-    const hotelSection = hotel ? `<button class="display-current-hotel" data-action="display-hotel-switch" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="display-current-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span></span><span class="display-current-hotel-action">切换${icon("chevron")}</span></button><div class="display-option-list">${hotelRows.map(([key, label, value]) => `<button class="display-option-row ${state.hotelUsage[key] ? "selected" : ""}" data-action="display-hotel-use" data-key="${key}" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="display-option-copy"><strong>${label}</strong><span>${esc(value)}</span></span><span class="display-selection-toggle">${icon("check")}</span></button>`).join("")}</div>` : `<div class="empty-card compact"><h3>还没有酒店信息</h3><p>添加酒店后，可选择名称、地址和酒店标志显示在画面上。</p><button class="secondary-btn" data-nav="hotelNew">新增酒店</button></div>`;
-    const qrSection = showQr ? `<div class="display-group-head material-group"><strong>独立素材</strong><span>不随酒店切换</span></div><div class="display-option-list"><div class="display-option-row qr-display-row ${state.selectedQr && state.qrUsage ? "selected" : ""}"><span class="display-option-copy"><strong>二维码</strong><span>${state.selectedQr ? "已添加，可选择是否显示" : "未添加，可添加 1 个"}</span></span><span class="display-qr-actions">${state.selectedQr ? `<button class="display-selection-toggle" data-action="display-qr-use" data-media="${media}" data-qr="1" aria-label="${state.qrUsage ? "不显示二维码" : "显示二维码"}">${icon("check")}</button><button class="display-text-action danger" data-action="display-qr-remove" data-media="${media}" data-qr="1">移除</button>` : `<button class="display-text-action" data-action="display-qr-add" data-media="${media}" data-qr="1">添加</button>`}</span></div></div>` : "";
-    return `<div class="display-content-sheet"><div class="display-sheet-head"><div><h3>${title}</h3><p>选择要直接显示在${media === "video" ? "视频" : "图片"}画面上的信息</p></div><button class="display-sheet-close" data-action="display-content-done" aria-label="关闭">${icon("close")}</button></div><div class="display-group-head"><strong>酒店信息</strong><span>随当前酒店切换</span></div>${hotelSection}${qrSection}<button class="display-sheet-done" data-action="display-content-done">完成</button></div>`;
-  }
-  if (kind === "hotel") {
-    return `<div class="sheet-handle"></div><h3>切换酒店</h3><p class="section-note">选择本次创作使用的酒店资料。</p><div class="sheet-options">${state.hotels.map((hotel) => `<button class="sheet-option ${hotel.id === state.currentHotelId ? "selected" : ""}" data-action="hotel-select" data-id="${hotel.id}"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span><strong>${esc(hotel.name)}</strong><small>${esc(hotel.address)}${hotel.id === state.currentHotelId ? " · 当前使用" : ""}</small></span>${hotel.id === state.currentHotelId ? icon("check") : icon("chevron")}</button>`).join("")}<button class="sheet-option" data-nav="hotelNew"><span class="action-icon">${icon("plus")}</span><span><strong>新增酒店</strong><small>添加另一家酒店资料</small></span>${icon("chevron")}</button></div><button class="text-action" data-action="sheet-close">关闭</button>`;
+    const hotelSection = hotel ? `<div class="display-current-hotel is-readonly"><span class="hotel-logo">${esc(hotel.logo || hotel.name.slice(0, 1))}</span><span class="display-current-hotel-copy"><strong>${esc(hotel.name)}</strong><span>${esc(hotel.address)}</span></span><span class="display-context-badge">当前酒店</span></div><div class="display-option-list">${hotelRows.map(([key, label, value]) => `<button class="display-option-row ${state.hotelUsage[key] ? "selected" : ""}" data-action="display-hotel-use" data-key="${key}" data-media="${media}" data-qr="${showQr ? "1" : "0"}"><span class="display-option-copy"><strong>${label}</strong><span>${esc(value)}</span></span><span class="display-selection-toggle">${icon("check")}</span></button>`).join("")}</div>` : `<div class="empty-card compact"><h3>尚未选择酒店</h3><p>请先返回酒店AI助手选择酒店。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`;
+    const qrSection = showQr ? `<div class="display-group-head material-group"><strong>二维码</strong><span>可选</span></div><div class="display-option-list"><div class="display-option-row qr-display-row ${state.selectedQr && state.qrUsage ? "selected" : ""}"><span class="display-option-copy"><strong>二维码</strong><span>${state.selectedQr ? "已添加，可选择是否显示" : "未添加，可添加 1 个"}</span></span><span class="display-qr-actions">${state.selectedQr ? `<button class="display-selection-toggle" data-action="display-qr-use" data-media="${media}" data-qr="1" aria-label="${state.qrUsage ? "不显示二维码" : "显示二维码"}">${icon("check")}</button><button class="display-text-action danger" data-action="display-qr-remove" data-media="${media}" data-qr="1">移除</button>` : `<button class="display-text-action" data-action="display-qr-add" data-media="${media}" data-qr="1">添加</button>`}</span></div></div>` : "";
+    return `<div class="display-content-sheet"><div class="display-sheet-head"><div><h3>${title}</h3><p>选择要直接显示在${media === "video" ? "视频" : "图片"}画面上的信息</p></div><button class="display-sheet-close" data-action="display-content-done" aria-label="关闭">${icon("close")}</button></div><div class="display-group-head"><strong>酒店信息</strong><span>来自酒店AI助手</span></div>${hotelSection}${qrSection}<button class="display-sheet-done" data-action="display-content-done">完成</button></div>`;
   }
   if (kind === "asset-channel") {
     const isQr = payload.kind === "qr";
@@ -691,7 +701,7 @@ function startGeneration(source, kindOverride) {
   const generationSource = marketing ? "marketingCreate" : source;
   const kind = kindOverride || (source === "videoCreate" || (marketing && state.marketingType === "video") || (source === "edit" && new URLSearchParams(location.search).get("kind") === "video") ? "video" : "image");
   const titles = { image: source === "templateCreate" ? selectedTemplate().name : marketing ? "暑期亲子入住推广" : "夏日亲子入住推广", video: marketing ? "暑期亲子入住短片" : "暑期亲子入住短片" };
-  state.generation = { status: "running", source: generationSource, marketing, kind, attempts: 0, title: titles[kind], createdFrom: page, musicStyle: kind === "video" ? state.selectedMusicStyle : "", idea: source === "templateCreate" ? selectedTemplate().name : marketing ? state.marketingIdea : source === "edit" ? state.editIdea : state.idea, materialImages: source === "edit" ? [...state.editImages] : source === "marketingCreate" ? [...state.marketingImages] : [...state.selectedImages], completed: marketing ? marketingCompletedItems() : [] };
+  state.generation = { status: "running", source: generationSource, marketing, kind, attempts: 0, title: titles[kind], createdFrom: page, hotelContext: currentHotel() ? { ...currentHotel() } : null, musicStyle: kind === "video" ? state.selectedMusicStyle : "", idea: source === "templateCreate" ? selectedTemplate().name : marketing ? state.marketingIdea : source === "edit" ? state.editIdea : state.idea, materialImages: source === "edit" ? [...state.editImages] : source === "marketingCreate" ? [...state.marketingImages] : [...state.selectedImages], completed: marketing ? marketingCompletedItems() : [] };
   write("yingdian_generation", state.generation);
   go("generation");
 }
@@ -704,15 +714,6 @@ function handleAction(action, target) {
     return;
   }
   if (action === "back") { history.length > 1 ? history.back() : go("home"); return; }
-  if (action === "hotel-sheet") { openSheet("hotel"); return; }
-  if (action === "hotel-select") {
-    const returnContent = state.sheet?.payload?.returnContent;
-    state.currentHotelId = data.id;
-    localStorage.setItem("yingdian_current_hotel", data.id);
-    if (returnContent) openSheet("display-content", returnContent);
-    else { closeSheet(); renderApp(); }
-    return;
-  }
   if (action === "hotel-use") { state.hotelUsage[data.key] = !state.hotelUsage[data.key]; renderApp(); return; }
   if (action === "voice-input") {
     const voiceTarget = data.field || "image-idea";
@@ -749,7 +750,6 @@ function handleAction(action, target) {
   }
   if (action === "display-content") { openSheet("display-content", { media: data.media, showQr: data.qr === "1" }); return; }
   if (action === "display-content-done") { closeSheet(); renderApp(); return; }
-  if (action === "display-hotel-switch") { openSheet("hotel", { returnContent: { media: data.media, showQr: data.qr === "1" } }); return; }
   if (action === "display-hotel-use") {
     state.hotelUsage[data.key] = !state.hotelUsage[data.key];
     openSheet("display-content", { media: data.media, showQr: data.qr === "1" });
@@ -908,15 +908,9 @@ function handleAction(action, target) {
   if (action === "works-refresh") { showToast("作品列表已刷新"); return; }
   if (action === "works-filter") { state.worksFilter = data.filter || "image"; renderApp(); return; }
   if (action === "work-open") { const work = state.works.find((item) => item.id === data.id); if (isMarketingWork(work)) { go("marketingActivity"); return; } go("result", { kind: work?.type === "15秒视频" ? "video" : "image" }); return; }
-  if (action === "hotel-edit") { state.hotelForm = { name: "", address: "", logo: "" }; go("hotelEdit", { id: data.id }); return; }
-  if (action === "hotel-logo") { state.hotelForm.logo = "云"; renderApp(); showToast("酒店标志已选择（原型演示）"); return; }
-  if (action === "hotel-logo-remove") { state.hotelForm.logo = ""; renderApp(); return; }
-  if (action === "hotel-form-cancel") { go("hotels"); return; }
-  if (action === "hotel-form-save") {
-    if (!state.hotelForm.name.trim() || !state.hotelForm.address.trim()) { showToast("请填写酒店名称和地址"); return; }
-    if (data.edit === "1") { const hotel = state.hotels.find((item) => item.id === data.id); if (hotel) Object.assign(hotel, state.hotelForm); }
-    else { const hotel = { id: `hotel-${Date.now()}`, ...state.hotelForm }; state.hotels.push(hotel); state.currentHotelId = hotel.id; localStorage.setItem("yingdian_current_hotel", hotel.id); }
-    write("yingdian_hotels", state.hotels); state.hotelForm = { name: "", address: "", logo: "" }; go("hotels"); return;
+  if (["hotel-edit", "hotel-logo", "hotel-logo-remove", "hotel-form-cancel", "hotel-form-save"].includes(action)) {
+    showToast("酒店信息由酒店AI助手统一管理");
+    return;
   }
   if (action === "asset-filter") { go("assets", { type: data.type }); return; }
   if (action === "asset-upload") { showToast(`已打开手机照片选择器（${data.kind === "qr" ? "二维码" : "图片"}，原型演示）`); return; }
@@ -945,7 +939,7 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("storage", () => {
-  state.hotels = read("yingdian_hotels", defaultHotels);
+  state.hotelContext = readPlatformHotelContext();
   renderApp();
 });
 
