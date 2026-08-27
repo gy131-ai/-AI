@@ -3671,6 +3671,131 @@ svg {
   padding: var(--space-4);
 }
 
+.campaign-work-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.campaign-work-title {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.campaign-work-title:hover h3 {
+  color: var(--blue-deep);
+}
+
+.campaign-work-kicker {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--blue-deep);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: .04em;
+}
+
+.campaign-package-note {
+  margin: var(--space-3) 0 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.campaign-content-grid {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.campaign-content-item {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: rgba(255, 255, 255, .86);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.campaign-content-item:hover {
+  border-color: var(--line-blue);
+  transform: translateY(-1px);
+}
+
+.campaign-content-item.is-complete {
+  color: var(--muted);
+  border-color: var(--line);
+  background: #f5f5f3;
+}
+
+.campaign-content-item.is-pending {
+  color: var(--blue-deep);
+  border-color: var(--line-blue);
+  background: var(--ice);
+}
+
+.campaign-content-item.is-complete .campaign-content-icon {
+  color: var(--muted);
+}
+
+.campaign-content-icon {
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--blue-deep);
+  background: rgba(255, 255, 255, .9);
+}
+
+.campaign-content-icon svg {
+  width: 11px;
+  height: 11px;
+}
+
+.campaign-content-state {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 720;
+}
+
+.campaign-content-item.is-pending .campaign-content-state {
+  color: var(--blue-deep);
+}
+
+.campaign-content-item > strong {
+  font-size: 10px;
+}
+
+.campaign-content-arrow {
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  color: var(--blue-deep);
+}
+
+.campaign-content-arrow svg {
+  width: 13px;
+  height: 13px;
+}
+
 .campaign-work-body h3 {
   margin: 0;
   font-family: var(--serif);
