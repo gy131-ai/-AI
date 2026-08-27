@@ -246,7 +246,7 @@ function renderHotelInfoRow(media, showQr) {
 
 function renderQrSettingRow() {
   const selected = state.selectedQr;
-  return `<div class="display-setting-row ${selected ? "has-selection" : ""}"><button class="display-content-row ${selected ? "has-selection" : ""}" data-action="qr-sheet" aria-label="${selected ? "更换二维码" : "添加二维码"}"><span class="display-content-main"><strong>二维码</strong><span>${selected ? "已添加" : "未添加"}</span></span>${icon("chevron")}</button>${selected ? `<button class="display-row-remove" data-action="qr-remove" aria-label="移除二维码">${icon("trash")}</button>` : ""}</div>`;
+  return `<div class="display-setting-row ${selected ? "has-selection" : ""}"><button class="display-setting-main" data-action="qr-sheet" aria-label="${selected ? "更换二维码" : "添加二维码"}"><span class="display-content-main"><strong>二维码</strong><span>${selected ? "已添加" : "未添加"}</span></span>${icon("chevron")}</button>${selected ? `<button class="display-row-remove" data-action="qr-remove" aria-label="移除二维码">${icon("trash")}</button>` : ""}</div>`;
 }
 
 function renderDisplaySettings(media, showQr) {

@@ -1308,8 +1308,68 @@ svg {
   gap: var(--space-6);
 }
 
+.display-settings-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.display-settings-section .quick-setting-head {
+  min-height: 18px;
+}
+
+.display-setting-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.display-setting-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.68);
+  overflow: hidden;
+}
+
+.display-setting-row.has-selection {
+  grid-template-columns: minmax(0, 1fr) 52px;
+  border-color: var(--line-blue);
+  background: rgba(247, 250, 255, 0.86);
+}
+
+.display-setting-main {
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  padding: 10px var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.display-setting-main > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--muted);
+}
+
+.display-setting-row.has-selection .display-content-main span {
+  color: var(--blue-deep);
+}
+
 .display-content-row {
   width: 100%;
+  min-width: 0;
   min-height: 54px;
   padding: 10px var(--space-4);
   display: flex;
@@ -1345,11 +1405,14 @@ svg {
 
 .display-content-main span {
   min-width: 0;
+  overflow: hidden;
   color: var(--muted);
+  text-overflow: ellipsis;
   text-align: right;
   font-size: 10px;
   font-weight: 550;
   line-height: 1.45;
+  white-space: nowrap;
 }
 
 .display-content-row.has-selection .display-content-main span {
@@ -1361,6 +1424,31 @@ svg {
   height: 16px;
   flex: 0 0 16px;
   color: var(--muted);
+}
+
+.display-row-remove {
+  width: 52px;
+  height: 100%;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.display-row-remove:active {
+  color: var(--danger);
+  border-color: rgba(180, 62, 67, 0.24);
+  background: rgba(255, 246, 246, 0.9);
+}
+
+.display-row-remove svg {
+  width: 16px;
+  height: 16px;
 }
 
 .quick-setting-section {
