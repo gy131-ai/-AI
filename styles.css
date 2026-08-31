@@ -2348,16 +2348,6 @@ svg {
   gap: var(--space-2);
 }
 
-.generation-cancel-link {
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  color: var(--muted);
-  background: transparent;
-  font-size: 10px;
-  cursor: pointer;
-}
-
 @keyframes generation-status-cycle {
   0%, 27%, 100% { opacity: 0; transform: translateY(3px); }
   7%, 20% { opacity: 1; transform: translateY(0); }
