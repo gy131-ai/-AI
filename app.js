@@ -262,11 +262,6 @@ function renderQuickMusicSection() {
   return `<section class="quick-setting-section"><div class="quick-setting-head"><h2>背景音乐</h2><span>当前 ${esc(state.selectedMusicStyle)}</span></div>${musicRow()}</section>`;
 }
 
-function templateMaterialHint(item) {
-  const orientation = item.ratio === "4:3" ? "横向画面" : item.ratio === "1:1" ? "方形画面" : "竖向画面";
-  return `${item.scene}相关照片，${orientation}，主体清晰`;
-}
-
 function renderHotelCard(showQr = false) {
   const hotel = currentHotel();
   if (!hotel) return `<div class="empty-card"><div class="empty-icon">${icon("building")}</div><h3>尚未选择酒店</h3><p>请先在酒店AI助手中选择酒店，再返回营点AI。</p><button class="secondary-btn" data-action="platform-back">返回酒店AI助手</button></div>`;
@@ -317,7 +312,7 @@ function renderTemplateCreate() {
   const item = selectedTemplate();
   const action = `<button class="primary-btn" data-action="start-generation" data-source="templateCreate">${icon("sparkle")}生成成品</button>`;
   const templatePreview = `<section class="section template-context-section"><div class="template-context-card"><button class="template-context-thumb" data-action="template-preview" data-template="${item.id}" aria-label="查看${esc(item.name)}样式"><img src="${item.image}" alt="${esc(item.name)}样式缩略图"></button><div class="template-context-copy"><div class="template-context-heading"><div><p class="eyebrow">当前模板</p><h2 class="section-title">${esc(item.name)}</h2><p class="section-note">${esc(item.type)} · ${esc(item.scene)}</p></div><span class="template-context-ratio">${esc(item.ratio)}</span></div><p class="template-context-hint">上传主图，套用这个样式</p><div class="template-context-actions"><button class="text-action" data-action="template-preview" data-template="${item.id}">查看样式 ${icon("chevron")}</button><button class="text-action" data-nav="templates">重新选择 ${icon("chevron")}</button></div></div></div></section>`;
-  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加素材", suggestion: templateMaterialHint(item) })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
+  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加素材" })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
   return pageShell({ title: "模板创作", content, action });
 }
 
@@ -357,7 +352,7 @@ function renderMarketingCreate() {
   const adjusted = sessionStorage.getItem("yingdian_marketing_adjusted") === "1";
   const summaryTitle = adjusted ? "入住酒店＋周边亲子体验" : "暑期亲子入住推广";
   const summaryNote = adjusted ? "在亲子房、早餐基础上，补充周边亲子体验，延展成一份轻度假安排。" : "围绕亲子房、早餐和儿童用品，保持明亮、轻松的入住氛围。";
-  const summary = `<section class="section"><div class="editorial-card"><div class="editorial-card-body"><p class="eyebrow">策划摘要</p><h2 class="section-title">${summaryTitle}</h2><p class="section-note">${summaryNote}</p><div class="marketing-summary-action"><button class="text-action" data-nav="marketingPlan">查看完整策划 ${icon("chevron")}</button></div></div></div></section>`;
+  const summary = `<section class="section"><div class="editorial-card"><div class="editorial-card-body"><p class="eyebrow">策划摘要</p><h2 class="section-title">${summaryTitle}</h2><p class="section-note">${summaryNote}</p></div></div></section>`;
   const typeSelector = `<section class="section"><div class="section-head"><h2 class="section-title">内容类型</h2><span class="section-note">选择一种先生成</span></div><div class="segmented"><button class="segment ${image ? "active" : ""}" data-action="marketing-type" data-type="image">文案＋图片</button><button class="segment ${!image ? "active" : ""}" data-action="marketing-type" data-type="video">文案＋视频</button></div></section>`;
   const settings = `${renderDisplaySettings(image ? "image" : "video", image)}${renderQuickRatioSection(image ? "image" : "video", image ? "图片比例" : "视频比例")}${image ? "" : renderQuickMusicSection()}`;
   const content = `<div class="quick-create-content marketing-quick-create">${summary}${typeSelector}${renderQuickPrompt({ value: state.marketingIdea, bind: "marketing-idea", placeholder: "编辑基于策划生成的内容想法", images: state.marketingImages, removeAction: "marketing-asset-remove", kind: image ? "image" : "video", listKey: "marketingImages", assetLabel: "添加素材", suggestion: "亲子房环境、早餐餐台、儿童用品和酒店公共空间照片" })}<div class="quick-settings-panel">${settings}</div></div>`;
