@@ -46,7 +46,7 @@ const state = {
   hotelContext: readPlatformHotelContext(),
   works: read("yingdian_works", defaultWorks),
   homeType: "朋友圈海报",
-  worksFilter: "image",
+  worksFilter: sessionStorage.getItem("yingdian_works_filter") || "image",
   selectedTemplateId: sessionStorage.getItem("yingdian_template") || "summer",
   selectedImages: [],
   selectedQr: false,
@@ -415,6 +415,16 @@ function generationCompletion(meta) {
   return `<div class="generation-completion"><div><span>已完成内容</span><strong>${completed}</strong></div><div><span>待完成内容</span><strong>${pending}</strong></div></div>`;
 }
 
+function generationWaitCopy(meta) {
+  if (meta.isMarketing) return "本次营销内容生成需要一点时间，请稍等片刻。";
+  if (meta.mediaLabel === "15秒视频") return "视频生成可能需要几分钟，请稍等片刻。";
+  return "图片生成需要一点时间，请稍等片刻。";
+}
+
+function generationActions() {
+  return `<div class="generation-exit-actions"><button class="primary-btn" data-action="generation-view-works">查看作品</button><button class="secondary-btn" data-action="generation-home">返回首页</button></div><button class="generation-cancel-link" data-action="generation-cancel">取消生成</button>`;
+}
+
 function renderGeneration() {
   if (!state.generation) {
     state.generation = { status: "running", source: "imageCreate", attempts: 0, kind: "image", title: "夏日亲子入住推广", createdFrom: "imageCreate", completed: [] };
@@ -424,8 +434,8 @@ function renderGeneration() {
   const meta = generationMeta(gen);
   if (gen.status === "running") {
     const context = meta.isMarketing ? meta.activity : meta.isTemplate ? selectedTemplate().name : "自由创作";
-    const content = `<div class="generation-page-content"><section class="section generation-intro"><p class="eyebrow">${meta.sourceName}</p><h2 class="section-title">正在生成${meta.isMarketing ? meta.currentCombo : `你的${meta.mediaLabel}`}</h2><div class="generation-context-line">${esc(context)}</div></section><section class="section generation-visual-section">${generationMaterialVisual(meta)}<div class="generation-live-status"><span>正在理解创作方向</span><span>正在组合内容表达</span><span>正在整理最终画面</span></div></section></div>`;
-    return pageShell({ title: "生成中", content, action: `<button class="danger-btn" data-action="generation-cancel">取消</button>` });
+    const content = `<div class="generation-page-content"><section class="section generation-intro"><p class="eyebrow">${meta.sourceName}</p><h2 class="section-title">正在生成${meta.isMarketing ? meta.currentCombo : `你的${meta.mediaLabel}`}</h2><div class="generation-context-line">${esc(context)}</div></section><section class="section generation-visual-section">${generationMaterialVisual(meta)}<div class="generation-live-status"><span>正在理解创作方向</span><span>正在组合内容表达</span><span>正在整理最终画面</span></div></section><section class="generation-leave-note"><span class="generation-leave-icon">${icon("info")}</span><p><strong>${generationWaitCopy(meta)}</strong>你可以先离开当前页面，稍后在“作品”中查看生成进度和结果。离开页面不会中断生成。</p></section></div>`;
+    return pageShell({ title: "生成中", content, action: generationActions() });
   }
   if (gen.status === "failed") {
     const repeated = gen.attempts > 1;
@@ -510,19 +520,25 @@ function renderEdit() {
 function renderWorks() {
   const filter = state.worksFilter;
   const hotelId = currentHotel()?.id;
+  const activeGeneration = state.generation?.status === "running" ? state.generation : null;
+  const activeMarketingGeneration = activeGeneration && isMarketingGeneration(activeGeneration) ? activeGeneration : null;
+  const activeOrdinaryGeneration = activeGeneration && !isMarketingGeneration(activeGeneration) ? activeGeneration : null;
   const contextWorks = state.works.filter((work) => !work.hotelId || work.hotelId === hotelId);
   const ordinaryWorks = contextWorks.map((work) => work.type === "模板创作" ? { ...work, type: "宣传图", source: work.source || "templateCreate" } : work);
   const filtered = ordinaryWorks.filter((work) => !isMarketingWork(work) && (filter === "image" ? work.type !== "15秒视频" : work.type === "15秒视频"));
   const mediaLabel = filter === "image" ? "图片" : "视频";
-  const workList = filtered.length ? `<div class="work-grid">${filtered.map((work) => `<button class="work-tile" data-action="work-open" data-id="${work.id}" aria-label="查看${mediaLabel}作品"><span class="work-tile-media"><img src="${work.image}" alt="${mediaLabel}作品">${filter === "video" ? `<span class="work-tile-play">${icon("play")}</span>` : ""}</span><span class="work-tile-meta"><span class="work-tile-status"><i></i>${esc(work.status || "已完成")}</span><span class="work-tile-time">${esc(work.time || "刚刚")}</span></span></button>`).join("")}</div>` : `<div class="empty-card compact"><div class="empty-icon">${icon(filter === "image" ? "image" : "video")}</div><h3>还没有${mediaLabel}作品</h3><p>完成生成后，作品会自动保存在这里。</p></div>`;
+  const activeMatchesFilter = activeOrdinaryGeneration && (filter === "video" ? activeOrdinaryGeneration.kind === "video" : activeOrdinaryGeneration.kind !== "video");
+  const generatingTile = activeMatchesFilter ? `<div class="work-tile is-generating" aria-label="${mediaLabel}正在生成"><span class="work-tile-media"><img src="${activeOrdinaryGeneration.materialImages?.[0] || (activeOrdinaryGeneration.kind === "video" ? ASSET.room : ASSET.night)}" alt="正在生成的${mediaLabel}"><span class="work-tile-generating-mask"><span class="spinner"></span><strong>生成中</strong></span></span><span class="work-tile-meta"><span class="work-tile-status is-running"><i></i>生成中</span><span class="work-tile-time">刚刚</span></span></div>` : "";
+  const completedTiles = filtered.map((work) => `<button class="work-tile" data-action="work-open" data-id="${work.id}" aria-label="查看${mediaLabel}作品"><span class="work-tile-media"><img src="${work.image}" alt="${mediaLabel}作品">${filter === "video" ? `<span class="work-tile-play">${icon("play")}</span>` : ""}</span><span class="work-tile-meta"><span class="work-tile-status"><i></i>${esc(work.status || "已完成")}</span><span class="work-tile-time">${esc(work.time || "刚刚")}</span></span></button>`).join("");
+  const workList = generatingTile || completedTiles ? `<div class="work-grid">${generatingTile}${completedTiles}</div>` : `<div class="empty-card compact"><div class="empty-icon">${icon(filter === "image" ? "image" : "video")}</div><h3>还没有${mediaLabel}作品</h3><p>完成生成后，作品会自动保存在这里。</p></div>`;
   const marketingCompleted = marketingCompletedItems();
-  const marketingImageDone = marketingCompleted.includes("宣传图") || !marketingCompleted.length;
+  const marketingImageDone = marketingCompleted.includes("宣传图") || (!marketingCompleted.length && !activeMarketingGeneration);
   const marketingVideoDone = marketingCompleted.includes("15秒视频");
   const marketingComplete = marketingImageDone && marketingVideoDone;
   const marketingNextKind = marketingImageDone ? "video" : "image";
   const marketingNextLabel = marketingImageDone ? "视频" : "图片";
-  const campaignContentButton = (kind, label, done) => done ? `<button class="campaign-content-item is-complete" data-action="marketing-content-open" data-kind="${kind}" aria-label="查看已完成${label}"><span class="campaign-content-icon">${icon(kind === "image" ? "image" : "video")}</span><strong>${label}</strong><span class="campaign-content-state">已完成</span></button>` : `<button class="campaign-content-item is-pending" data-action="marketing-continue" data-kind="${kind}" aria-label="继续生成${label}"><span class="campaign-content-icon">${icon(kind === "image" ? "image" : "video")}</span><strong>${label}</strong><span class="campaign-content-state">待生成</span><span class="campaign-content-arrow">${icon("chevron")}</span></button>`;
-  const marketingList = `<div class="campaign-work-list"><article class="campaign-work-card"><div class="campaign-work-cover"><img src="${ASSET.night}" alt="暑期亲子入住推广"><span>营销活动</span></div><div class="campaign-work-body"><div class="campaign-work-header"><button class="campaign-work-title" data-nav="marketingActivity" aria-label="查看营销活动详情"><span class="campaign-work-kicker">营销活动</span><h3>暑期亲子入住推广</h3><p>今天 10:24 更新</p></button><span class="status-pill">${marketingComplete ? "已完成" : "进行中"}</span></div><p class="campaign-package-note">内容包：通用文案、宣传图、15秒视频</p><div class="campaign-content-grid">${campaignContentButton("image", "宣传图", marketingImageDone, "已完成本次营销活动图片")}${campaignContentButton("video", "15秒视频", marketingVideoDone, "已完成本次营销活动视频")}</div>${marketingComplete ? `<p class="campaign-complete-note">文案、图片和视频已归入同一次营销活动。</p>` : ""}</div></article></div>`;
+  const campaignContentButton = (kind, label, done) => activeMarketingGeneration?.kind === kind ? `<div class="campaign-content-item is-generating"><span class="campaign-content-icon">${icon(kind === "image" ? "image" : "video")}</span><strong>${label}</strong><span class="campaign-content-state">生成中</span></div>` : done ? `<button class="campaign-content-item is-complete" data-action="marketing-content-open" data-kind="${kind}" aria-label="查看已完成${label}"><span class="campaign-content-icon">${icon(kind === "image" ? "image" : "video")}</span><strong>${label}</strong><span class="campaign-content-state">已完成</span></button>` : `<button class="campaign-content-item is-pending" data-action="marketing-continue" data-kind="${kind}" aria-label="继续生成${label}"><span class="campaign-content-icon">${icon(kind === "image" ? "image" : "video")}</span><strong>${label}</strong><span class="campaign-content-state">待生成</span><span class="campaign-content-arrow">${icon("chevron")}</span></button>`;
+  const marketingList = `<div class="campaign-work-list"><article class="campaign-work-card"><div class="campaign-work-cover"><img src="${ASSET.night}" alt="暑期亲子入住推广"><span>营销活动</span></div><div class="campaign-work-body"><div class="campaign-work-header"><button class="campaign-work-title" data-nav="marketingActivity" aria-label="查看营销活动详情"><span class="campaign-work-kicker">营销活动</span><h3>暑期亲子入住推广</h3><p>${activeMarketingGeneration ? "正在生成内容" : "今天 10:24 更新"}</p></button><span class="status-pill ${activeMarketingGeneration ? "is-generating" : ""}">${activeMarketingGeneration ? "生成中" : marketingComplete ? "已完成" : "进行中"}</span></div><p class="campaign-package-note">内容包：通用文案、宣传图、15秒视频</p><div class="campaign-content-grid">${campaignContentButton("image", "宣传图", marketingImageDone)}${campaignContentButton("video", "15秒视频", marketingVideoDone)}</div>${marketingComplete ? `<p class="campaign-complete-note">文案、图片和视频已归入同一次营销活动。</p>` : ""}</div></article></div>`;
   const content = `<section class="section"><div class="section-head"><div><h2 class="section-title">我的作品</h2><p class="section-note">生成成功的内容会自动保存</p></div><button class="text-action" data-action="works-refresh">刷新 ${icon("refresh")}</button></div><div class="works-tabs"><button class="works-tab ${filter === "image" ? "active" : ""}" data-action="works-filter" data-filter="image">图片</button><button class="works-tab ${filter === "video" ? "active" : ""}" data-action="works-filter" data-filter="video">视频</button><button class="works-tab ${filter === "marketing" ? "active" : ""}" data-action="works-filter" data-filter="marketing">营销活动</button></div>${filter === "marketing" ? marketingList : workList}</section>`;
   return pageShell({ title: "作品", subtitle: "最近生成的内容", content, nav: true });
 }
@@ -556,7 +572,29 @@ function renderAccount() {
   return pageShell({ title: "账户信息", subtitle: "由酒店AI助手平台管理", content });
 }
 
+function completeGeneration() {
+  if (!state.generation || state.generation.status !== "running") return;
+  state.generation.status = "success";
+  state.generation.timer = null;
+  write("yingdian_generation", state.generation);
+  addWorkFromGeneration();
+}
+
+function syncGenerationProgress() {
+  const gen = state.generation;
+  if (!gen || gen.status !== "running") return;
+  if (!gen.startedAt || !gen.dueAt || !gen.workId) {
+    const startedAt = gen.startedAt || Date.now();
+    gen.startedAt = startedAt;
+    gen.dueAt = gen.dueAt || startedAt + 30000;
+    gen.workId = gen.workId || `work-${startedAt}`;
+    write("yingdian_generation", gen);
+  }
+  if (Date.now() >= gen.dueAt) completeGeneration();
+}
+
 function renderApp() {
+  syncGenerationProgress();
   const app = document.getElementById("app");
   const page = document.body.dataset.page;
   let html = "";
@@ -583,7 +621,7 @@ function renderApp() {
   }
   app.innerHTML = html + `<div class="toast" id="toast"></div><div class="sheet-backdrop" id="sheet-backdrop"><div class="sheet" id="sheet"></div></div>`;
   bindInputs();
-  if (page === "generation" && state.generation?.status === "running") scheduleGeneration();
+  if (state.generation?.status === "running") scheduleGeneration();
 }
 
 function bindInputs() {
@@ -600,20 +638,18 @@ function bindInputs() {
 
 function scheduleGeneration() {
   if (state.generation.timer) return;
+  const remaining = Math.max(0, (state.generation.dueAt || Date.now() + 30000) - Date.now());
   state.generation.timer = setTimeout(() => {
-    state.generation.timer = null;
     if (state.generation.status !== "running") return;
-    state.generation.status = "success";
-    write("yingdian_generation", state.generation);
-    addWorkFromGeneration();
+    completeGeneration();
     renderApp();
-  }, 4000);
+  }, remaining);
 }
 
 function addWorkFromGeneration() {
   const gen = state.generation;
   const marketing = isMarketingGeneration(gen);
-  const item = { id: `work-${Date.now()}`, hotelId: gen.hotelContext?.id || currentHotel()?.id || "", hotelContext: gen.hotelContext || null, title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, idea: gen.idea || "", marketing, activityId: marketing ? "summer-family-stay" : "" };
+  const item = { id: gen.workId || `work-${Date.now()}`, hotelId: gen.hotelContext?.id || currentHotel()?.id || "", hotelContext: gen.hotelContext || null, title: gen.title || "未命名作品", type: gen.kind === "video" ? "15秒视频" : (gen.source === "templateCreate" ? "模板创作" : "宣传图"), status: "已完成", image: gen.kind === "video" ? ASSET.room : ASSET.night, time: "刚刚", source: gen.source, idea: gen.idea || "", marketing, activityId: marketing ? "summer-family-stay" : "" };
   state.works = [item, ...state.works.filter((work) => work.id !== item.id)];
   write("yingdian_works", state.works);
   if (marketing) {
@@ -678,6 +714,9 @@ function sheetContent(kind, payload) {
   if (kind === "qr-preview") {
     return `<div class="sheet-handle"></div><h3>二维码预览</h3><div class="qr-preview-large">${Array.from({ length: 9 }).map(() => "<i></i>").join("")}</div><button class="text-action" data-action="sheet-close">关闭</button>`;
   }
+  if (kind === "generation-cancel") {
+    return `<div class="sheet-handle"></div><h3>取消本次生成？</h3><p class="section-note">取消后将停止当前任务，本次生成进度不会保留。</p><div class="button-row"><button class="secondary-btn" data-action="sheet-close">继续生成</button><button class="danger-btn" data-action="generation-cancel-confirm">确认取消</button></div>`;
+  }
   if (kind === "preview") {
     const item = templates.find((template) => template.id === payload.id) || templates[0];
     return `<div class="sheet-handle"></div><h3>${esc(item.name)}</h3><div class="sheet-preview"><span class="poster"><img src="${item.image}" alt="${esc(item.name)}"><span class="poster-copy"><small>${esc(item.type)}</small><strong>${esc(item.name)}</strong><span>${esc(item.scene)}</span></span></span></div><div class="button-row template-preview-actions"><button class="secondary-btn" data-action="sheet-close">关闭</button><button class="primary-btn" data-action="template-use-preview" data-template="${item.id}">使用这个模板</button></div>`;
@@ -707,7 +746,8 @@ function startGeneration(source, kindOverride) {
   const generationSource = marketing ? "marketingCreate" : source;
   const kind = kindOverride || (source === "videoCreate" || (marketing && state.marketingType === "video") || (source === "edit" && new URLSearchParams(location.search).get("kind") === "video") ? "video" : "image");
   const titles = { image: source === "templateCreate" ? selectedTemplate().name : marketing ? "暑期亲子入住推广" : "夏日亲子入住推广", video: marketing ? "暑期亲子入住短片" : "暑期亲子入住短片" };
-  state.generation = { status: "running", source: generationSource, marketing, kind, attempts: 0, title: titles[kind], createdFrom: page, hotelContext: currentHotel() ? { ...currentHotel() } : null, musicStyle: kind === "video" ? state.selectedMusicStyle : "", idea: source === "templateCreate" ? selectedTemplate().name : marketing ? state.marketingIdea : source === "edit" ? state.editIdea : state.idea, materialImages: source === "edit" ? [...state.editImages] : source === "marketingCreate" ? [...state.marketingImages] : [...state.selectedImages], completed: marketing ? marketingCompletedItems() : [] };
+  const startedAt = Date.now();
+  state.generation = { status: "running", source: generationSource, marketing, kind, attempts: 0, title: titles[kind], createdFrom: page, hotelContext: currentHotel() ? { ...currentHotel() } : null, musicStyle: kind === "video" ? state.selectedMusicStyle : "", idea: source === "templateCreate" ? selectedTemplate().name : marketing ? state.marketingIdea : source === "edit" ? state.editIdea : state.idea, materialImages: source === "edit" ? [...state.editImages] : source === "marketingCreate" ? [...state.marketingImages] : [...state.selectedImages], completed: marketing ? marketingCompletedItems() : [], startedAt, dueAt: startedAt + 30000, workId: `work-${startedAt}` };
   write("yingdian_generation", state.generation);
   go("generation");
 }
@@ -885,11 +925,13 @@ function handleAction(action, target) {
   }
   if (action === "marketing-type") { state.marketingType = data.type; sessionStorage.setItem("yingdian_marketing_type", data.type); renderApp(); return; }
   if (action === "start-generation") { startGeneration(data.source || document.body.dataset.page, data.kind); return; }
-  if (action === "generation-cancel") { const sourcePage = state.generation?.createdFrom || "home"; if (state.generation?.timer) clearTimeout(state.generation.timer); state.generation = null; localStorage.removeItem("yingdian_generation"); go(sourcePage); return; }
+  if (action === "generation-view-works") { const filter = isMarketingGeneration(state.generation) ? "marketing" : state.generation?.kind === "video" ? "video" : "image"; state.worksFilter = filter; sessionStorage.setItem("yingdian_works_filter", filter); go("works"); return; }
+  if (action === "generation-cancel") { openSheet("generation-cancel"); return; }
+  if (action === "generation-cancel-confirm") { const sourcePage = state.generation?.createdFrom || "home"; if (state.generation?.timer) clearTimeout(state.generation.timer); state.generation = null; localStorage.removeItem("yingdian_generation"); closeSheet(); go(sourcePage); return; }
   if (action === "simulate-fail") { if (state.generation?.timer) clearTimeout(state.generation.timer); state.generation.timer = null; state.generation.status = "failed"; state.generation.attempts = Math.max(1, state.generation.attempts + 1); write("yingdian_generation", state.generation); renderApp(); return; }
-  if (action === "generation-retry") { state.generation.status = "running"; state.generation.attempts += 1; write("yingdian_generation", state.generation); renderApp(); return; }
+  if (action === "generation-retry") { const restartedAt = Date.now(); state.generation.status = "running"; state.generation.attempts += 1; state.generation.startedAt = restartedAt; state.generation.dueAt = restartedAt + 30000; write("yingdian_generation", state.generation); renderApp(); return; }
   if (action === "generation-edit") { go("edit", { kind: state.generation.kind }); return; }
-  if (action === "generation-home") { state.generation = null; localStorage.removeItem("yingdian_generation"); go("home"); return; }
+  if (action === "generation-home") { go("home"); return; }
   if (action === "play") { showToast("视频播放/暂停（原型演示）"); return; }
   if (action === "copy") { navigator.clipboard?.writeText("这个夏天，和孩子住得刚刚好。")?.catch(() => {}); showToast("文案已复制"); return; }
   if (action === "download") { showToast("下载已开始（原型演示）"); return; }
@@ -905,7 +947,7 @@ function handleAction(action, target) {
     return;
   }
   if (action === "works-refresh") { showToast("作品列表已刷新"); return; }
-  if (action === "works-filter") { state.worksFilter = data.filter || "image"; renderApp(); return; }
+  if (action === "works-filter") { state.worksFilter = data.filter || "image"; sessionStorage.setItem("yingdian_works_filter", state.worksFilter); renderApp(); return; }
   if (action === "work-open") { const work = state.works.find((item) => item.id === data.id); if (isMarketingWork(work)) { go("marketingActivity"); return; } go("result", { kind: work?.type === "15秒视频" ? "video" : "image", source: work?.source || "imageCreate", workId: work?.id || "" }); return; }
   if (["hotel-edit", "hotel-logo", "hotel-logo-remove", "hotel-form-cancel", "hotel-form-save"].includes(action)) {
     showToast("酒店信息由酒店AI助手统一管理");
