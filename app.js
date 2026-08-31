@@ -225,9 +225,10 @@ function renderAssetThumbs(images, removeAction = "asset-remove", kind = "image"
 }
 
 function renderQuickPrompt({ value, bind, placeholder, images, removeAction, kind, listKey, assetLabel, suggestion = "", label = "想做什么？" }) {
-  const selectedAssets = images.length ? `<div class="quick-chosen-assets">${images.map((image, index) => `<span class="quick-asset-thumb"><img src="${image}" alt="已添加素材"><button data-action="${removeAction}" data-index="${index}" aria-label="删除素材">${icon("close")}</button></span>`).join("")}<button class="quick-asset-add" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}" aria-label="继续添加素材">${icon("plus")}</button></div>` : "";
+  const singleMainImage = kind === "template";
+  const selectedAssets = images.length ? `<div class="quick-chosen-assets">${images.map((image, index) => `<span class="quick-asset-thumb"><img src="${image}" alt="${singleMainImage ? "已添加主图" : "已添加素材"}"><button data-action="${removeAction}" data-index="${index}" aria-label="${singleMainImage ? "删除主图" : "删除素材"}">${icon("close")}</button></span>`).join("")}${singleMainImage ? "" : `<button class="quick-asset-add" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}" aria-label="继续添加素材">${icon("plus")}</button>`}</div>` : "";
   const suggestionMarkup = suggestion ? `<div class="quick-asset-suggestion"><strong>建议使用素材</strong><span>${esc(suggestion)}</span></div>` : "";
-  const assetAction = images.length ? "" : `<div class="quick-prompt-actions"><button class="quick-asset-action" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}">${icon("image")}<span>添加素材</span></button></div>`;
+  const assetAction = images.length ? "" : `<div class="quick-prompt-actions"><button class="quick-asset-action" data-action="asset-sheet" data-kind="${kind}" data-list="${listKey}">${icon("image")}<span>${esc(assetLabel || "添加素材")}</span></button></div>`;
   return `<article class="quick-prompt-card ${images.length ? "has-assets" : ""}"><h2 class="quick-prompt-label">${esc(label)}</h2><textarea class="quick-prompt-idea" data-bind="${bind}" aria-label="${esc(label)}" placeholder="${esc(placeholder)}">${esc(value)}</textarea><div class="quick-material-zone">${suggestionMarkup}${selectedAssets}</div>${assetAction}</article>`;
 }
 
@@ -310,9 +311,10 @@ function selectedTemplate() {
 
 function renderTemplateCreate() {
   const item = selectedTemplate();
+  if (state.selectedImages.length > 1) state.selectedImages = state.selectedImages.slice(0, 1);
   const action = `<button class="primary-btn" data-action="start-generation" data-source="templateCreate">${icon("sparkle")}生成成品</button>`;
   const templatePreview = `<section class="section template-context-section"><div class="template-context-card"><button class="template-context-thumb" data-action="template-preview" data-template="${item.id}" aria-label="查看${esc(item.name)}样式"><img src="${item.image}" alt="${esc(item.name)}样式缩略图"></button><div class="template-context-copy"><div class="template-context-heading"><div><p class="eyebrow">当前模板</p><h2 class="section-title">${esc(item.name)}</h2><p class="section-note">${esc(item.type)} · ${esc(item.scene)}</p></div><span class="template-context-ratio">${esc(item.ratio)}</span></div><p class="template-context-hint">上传主图，套用这个样式</p><div class="template-context-actions"><button class="text-action" data-action="template-preview" data-template="${item.id}">查看样式 ${icon("chevron")}</button><button class="text-action" data-nav="templates">重新选择 ${icon("chevron")}</button></div></div></div></section>`;
-  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加素材" })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
+  const content = `<div class="quick-create-content template-quick-create">${templatePreview}${renderQuickPrompt({ value: state.idea, bind: "template-idea", placeholder: "描述这次想突出什么，模板会保持当前样式", images: state.selectedImages, removeAction: "asset-remove", kind: "template", listKey: "selectedImages", assetLabel: "添加主图" })}<div class="quick-settings-panel">${renderDisplaySettings("image", item.qr)}</div></div>`;
   return pageShell({ title: "模板创作", content, action });
 }
 
@@ -705,7 +707,8 @@ function sheetContent(kind, payload) {
     const images = [ASSET.room, ASSET.dining, ASSET.night, ASSET.detail];
     const listKey = ["marketingImages", "editImages"].includes(payload.list) ? payload.list : "selectedImages";
     const selected = state[listKey];
-    return `<div class="sheet-handle"></div><h3>选择我的素材</h3><div class="asset-grid">${images.map((image, index) => `<button class="asset-thumb ${selected.includes(image) ? "selected" : ""}" data-action="asset-pick" data-image="${image}" data-list="${listKey}"><img src="${image}" alt="素材${index + 1}">${selected.includes(image) ? `<span class="checkbox" style="position:absolute;right:6px;top:6px;color:#fff;background:#173c8d">${icon("check")}</span>` : ""}</button>`).join("")}</div><p class="field-help">已选 ${selected.length} 个素材</p><div class="button-row"><button class="secondary-btn" data-action="sheet-close">取消</button><button class="primary-btn" data-action="asset-confirm">确认使用</button></div>`;
+    const singleMainImage = payload.kind === "template";
+    return `<div class="sheet-handle"></div><h3>${singleMainImage ? "选择一张主图" : "选择我的素材"}</h3><div class="asset-grid">${images.map((image, index) => `<button class="asset-thumb ${selected.includes(image) ? "selected" : ""}" data-action="asset-pick" data-image="${image}" data-list="${listKey}"><img src="${image}" alt="素材${index + 1}">${selected.includes(image) ? `<span class="checkbox" style="position:absolute;right:6px;top:6px;color:#fff;background:#173c8d">${icon("check")}</span>` : ""}</button>`).join("")}</div><p class="field-help">${singleMainImage ? "模板创作仅使用 1 张主图，重新选择会替换当前主图" : `已选 ${selected.length} 个素材`}</p><div class="button-row"><button class="secondary-btn" data-action="sheet-close">取消</button><button class="primary-btn" data-action="asset-confirm">确认使用</button></div>`;
   }
   if (kind === "qr-select") {
     return `<div class="sheet-handle"></div><h3>选择我的二维码</h3><button class="sheet-option selected" data-action="qr-pick"><span class="qr-preview">${Array.from({ length: 9 }).map(() => "<i></i>").join("")}</span><span><strong>活动报名二维码</strong><small>使用已保存的二维码</small></span>${icon("check")}</button><button class="text-action" data-action="sheet-close">取消</button>`;
@@ -820,8 +823,8 @@ function handleAction(action, target) {
   if (action === "asset-sheet") { openSheet("asset-channel", { kind: data.kind, list: data.list }); return; }
   if (action === "asset-my") { openSheet("asset-select", { kind: data.kind, list: data.list }); return; }
   if (action === "qr-my") { openSheet("qr-select", { returnContent: state.sheet?.payload?.returnContent }); return; }
-  if (action === "asset-local") { closeSheet(); showToast("已打开手机照片选择器（原型演示）"); return; }
-  if (action === "asset-pick") { const image = data.image; const listKey = ["marketingImages", "editImages"].includes(data.list) ? data.list : "selectedImages"; const list = state[listKey]; state[listKey] = list.includes(image) ? list.filter((item) => item !== image) : [...list, image]; openSheet("asset-select", { kind: state.sheet?.payload?.kind, list: listKey }); return; }
+  if (action === "asset-local") { const singleMainImage = data.kind === "template"; if (singleMainImage) state.selectedImages = [ASSET.room]; closeSheet(); renderApp(); showToast(singleMainImage ? "主图已添加（原型演示）" : "已打开手机照片选择器（原型演示）"); return; }
+  if (action === "asset-pick") { const image = data.image; const listKey = ["marketingImages", "editImages"].includes(data.list) ? data.list : "selectedImages"; const list = state[listKey]; const singleMainImage = state.sheet?.payload?.kind === "template"; state[listKey] = singleMainImage ? (list.includes(image) ? [] : [image]) : (list.includes(image) ? list.filter((item) => item !== image) : [...list, image]); openSheet("asset-select", { kind: state.sheet?.payload?.kind, list: listKey }); return; }
   if (action === "asset-confirm") { closeSheet(); renderApp(); showToast("素材已更新"); return; }
   if (["asset-remove", "marketing-asset-remove", "edit-asset-remove"].includes(action)) { const list = action === "marketing-asset-remove" ? state.marketingImages : action === "edit-asset-remove" ? state.editImages : state.selectedImages; list.splice(Number(data.index), 1); renderApp(); return; }
   if (action === "qr-sheet") { openSheet("asset-channel", { kind: "qr" }); return; }
